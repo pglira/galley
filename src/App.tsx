@@ -1,236 +1,410 @@
-import { useEffect, useReducer, useState, useCallback, useRef } from "react";
-import { open as openDialog } from "@tauri-apps/plugin-dialog";
-import { getCurrentWebview } from "@tauri-apps/api/webview";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { open as openDialog, save as saveDialog } from "@tauri-apps/plugin-dialog";
+import { MessageSquarePlus } from "lucide-react";
 import { ThemeProvider } from "@/lib/theme";
 import { PreferencesProvider, usePreferences } from "@/lib/preferences";
 import { ResizeHandle } from "@/components/ResizeHandle";
 import { TooltipProvider } from "@/components/ui/tooltip";
-import { FolderSidebar } from "@/components/FolderSidebar";
-import { Pane } from "@/components/Pane";
-import { TableOfContents } from "@/components/TableOfContents";
+import { Button } from "@/components/ui/button";
+import { ReportTree, reportLabel, type Selection } from "@/components/ReportTree";
 import { Toolbar } from "@/components/Toolbar";
-import { CommandPalette } from "@/components/CommandPalette";
-import { tauri, onCliTarget, onFolderChanged, onFileChanged, type AnnotatedFolder } from "@/lib/tauri";
-import {
-  createInitialState,
-  reduce,
-  getActivePane,
-  getActiveTab,
-  type SplitDirection,
-} from "@/lib/workspace";
-import { cn } from "@/lib/utils";
+import { Viewer, type Document, type TextSelection, type ViewerHandle } from "@/components/Viewer";
+import { DocSearch } from "@/components/DocSearch";
+import { AnnotationsPanel, type Draft } from "@/components/AnnotationsPanel";
+import { ImageViewer } from "@/components/ImageViewer";
+import { StartScreen } from "@/components/StartScreen";
+import { SearchBox, SearchResults } from "@/components/SearchPanel";
+import { tauri, onOpenDir, assetUrl, type Galley, type Report, type SearchHit } from "@/lib/tauri";
+import { parseAnnotations, serializeAnnotations, type Annotation } from "@/lib/annotations";
+import { buildPrompt, copyText } from "@/lib/prompt";
+import { renderMarkdown } from "@/lib/markdown";
+import { isRelativePath, resolveRelative } from "@/lib/paths";
 
-const WELCOME = `# Welcome to Marky
+const POLL_MS = 2000;
 
-A fast markdown viewer with folder support.
+function joinPath(dir: string, name: string): string {
+  const sep = dir.includes("\\") && !dir.includes("/") ? "\\" : "/";
+  return `${dir}${sep}${name}`;
+}
 
-- Press **⌘K** to open the command palette and search files.
-- Press **⌘O** to open a file. **⌘F** searches inside the open document.
-- Add a folder from the sidebar; it stays available across sessions.
-- **⌘\\** splits the active pane vertically. **⌘⇧\\** splits horizontally.
-- Drop a file onto the window to open it as a new tab.
-
-Launch from the terminal:
-
-\`\`\`bash
-marky README.md       # open a file
-marky ./docs/         # open a folder (auto-saved)
-\`\`\`
-`;
+// Absolute paths of the local images of a document.
+function imagePaths(doc: Document): string[] {
+  const out: string[] = [];
+  renderMarkdown(doc.source, (src) => {
+    if (isRelativePath(src)) out.push(resolveRelative(doc.filePath, src));
+    return src;
+  });
+  return out;
+}
 
 function AppShell() {
-  const [state, dispatch] = useReducer(reduce, undefined, () => createInitialState(WELCOME));
-  const [paletteOpen, setPaletteOpen] = useState(false);
-  const [searchPaneId, setSearchPaneId] = useState<string | null>(null);
-  const [folders, setFolders] = useState<AnnotatedFolder[]>([]);
-  const [sidebarRefresh, setSidebarRefresh] = useState(0);
-  const sidebarRef = useRef<HTMLDivElement>(null);
-  const {
-    zoomIn, zoomOut, zoomReset,
-    sidebarLeftWidth, sidebarRightWidth,
-    setSidebarWidth, resetSidebarWidth,
-  } = usePreferences();
+  const [galley, setGalley] = useState<Galley | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
+  const [selection, setSelection] = useState<Selection | null>(null);
+  const [doc, setDoc] = useState<Document | null>(null);
+  const [diffOn, setDiffOn] = useState(false);
+  const [reference, setReference] = useState<string | null>(null);
+  const [compareDoc, setCompareDoc] = useState<Document | null>(null);
+  const [imageHashes, setImageHashes] = useState<Record<string, string>>({});
+  const [annotations, setAnnotations] = useState<Annotation[]>([]);
+  const [active, setActive] = useState<number | null>(null);
+  const [draft, setDraft] = useState<Draft | null>(null);
+  const [textSel, setTextSel] = useState<TextSelection | null>(null);
+  const [searchOpen, setSearchOpen] = useState(false);
+  const [findQuery, setFindQuery] = useState("");
+  const [findLine, setFindLine] = useState<number | null>(null);
+  const [allQuery, setAllQuery] = useState("");
+  const allInputRef = useRef<HTMLInputElement>(null);
+  const [contentNonce, setContentNonce] = useState(0);
+  const [recent, setRecent] = useState<string[]>([]);
+  const [image, setImage] = useState<{ src: string; alt: string } | null>(null);
+  const articleRef = useRef<HTMLElement>(null);
+  const viewerRef = useRef<ViewerHandle>(null);
+  const exportPdfRef = useRef<(() => void) | null>(null);
+  const galleyJson = useRef("");
+  const { zoomIn, zoomOut, zoomReset, sidebarLeftWidth, sidebarRightWidth, setSidebarWidth, resetSidebarWidth } =
+    usePreferences();
 
-  const activeTab = getActiveTab(state);
-  const activePane = getActivePane(state);
-  const isSplit = state.panes.length > 1;
+  const report: Report | null = galley?.reports.find((r) => r.name === selection?.report) ?? null;
+  const snapshot = report?.snapshots.find((s) => s.name === selection?.snapshot) ?? null;
+  const references = useMemo(
+    () => (report?.snapshots ?? []).map((s) => s.name).filter((n) => n !== snapshot?.name),
+    [report, snapshot?.name]
+  );
 
-  const refreshFolders = useCallback(async () => {
-    setFolders(await tauri.listFoldersGrouped());
-    setSidebarRefresh((n) => n + 1);
+  const applyGalley = useCallback((g: Galley) => {
+    const json = JSON.stringify(g);
+    if (json === galleyJson.current) return;
+    galleyJson.current = json;
+    setGalley(g);
   }, []);
 
-  const openFile = useCallback(async (path: string) => {
+  const openDir = useCallback(
+    async (path: string) => {
+      try {
+        const g = await tauri.openDir(path);
+        setSelection(null);
+        applyGalley(g);
+        setError(null);
+      } catch (e) {
+        setError(String(e));
+      }
+    },
+    [applyGalley]
+  );
+
+  const pickDir = useCallback(async () => {
+    const picked = await openDialog({ directory: true, multiple: false });
+    if (typeof picked === "string") openDir(picked);
+  }, [openDir]);
+
+  // Asks for the location of a new galley directory, creates it and opens it.
+  const createDir = useCallback(async () => {
+    const picked = await saveDialog({ title: "Create a galley directory", defaultPath: "galley" });
+    if (!picked) return;
     try {
-      const text = await tauri.readFile(path);
-      const title = path.split("/").pop() ?? path;
-      dispatch({ type: "OPEN_FILE", path, title, source: text });
-    } catch (err) {
-      console.error("failed to read file", err);
+      await tauri.createDir(picked);
+      openDir(picked);
+    } catch (e) {
+      setError(String(e));
     }
-  }, []);
+  }, [openDir]);
 
-  // Initial load.
+  // Open the directory from the command line, and directories from later
+  // launches. Without a directory, the start screen shows.
   useEffect(() => {
-    (async () => {
-      const target = await tauri.getInitialTarget();
-      if (target.kind === "file") openFile(target.path);
-      if (target.kind === "folder") setSidebarRefresh((n) => n + 1);
-      refreshFolders();
-    })();
-  }, [openFile, refreshFolders]);
-
-  // Keep App-level folders in sync whenever folders are added/removed/changed.
-  useEffect(() => {
-    const off = onFolderChanged(() => {
-      refreshFolders();
+    tauri.getInitialDir().then((d) => {
+      if (d) openDir(d);
     });
+    tauri.getRecentDirs().then(setRecent).catch(() => {});
+    const off = onOpenDir(openDir);
     return () => {
       off.then((fn) => fn());
     };
-  }, [refreshFolders]);
+  }, [openDir]);
 
-  // Re-read open files when they change on disk.
+  // Poll the directory. Polling works on all file systems, also on network
+  // mounts and container volumes that do not report file events.
   useEffect(() => {
-    const off = onFileChanged(async (paths) => {
-      for (const tab of Object.values(state.tabs)) {
-        if (tab.filePath && paths.includes(tab.filePath)) {
-          try {
-            const text = await tauri.readFile(tab.filePath);
-            dispatch({ type: "UPDATE_TAB_SOURCE", tabId: tab.id, source: text });
-          } catch {
-            // File may have been deleted; ignore
-          }
-        }
+    if (!galley) return;
+    const id = setInterval(() => {
+      tauri.scanDir().then(applyGalley).catch(() => {});
+    }, POLL_MS);
+    return () => clearInterval(id);
+  }, [galley != null, applyGalley]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Keep the selection valid: default to the last snapshot of the newest report.
+  useEffect(() => {
+    if (!galley) return;
+    const r = galley.reports.find((x) => x.name === selection?.report) ?? galley.reports[0];
+    if (!r) {
+      if (selection) setSelection(null);
+      return;
+    }
+    const s = r.snapshots.find((x) => x.name === selection?.snapshot) ?? r.snapshots[r.snapshots.length - 1];
+    if (r.name !== selection?.report || s.name !== selection?.snapshot) {
+      setSelection({ report: r.name, snapshot: s.name });
+    }
+  }, [galley, selection]);
+
+  // Load the report of the selected snapshot, and reload it when it changes.
+  useEffect(() => {
+    if (!snapshot) {
+      setDoc(null);
+      return;
+    }
+    // Ignore responses that arrive after the selection changes.
+    let cancelled = false;
+    const filePath = joinPath(snapshot.path, "report.md");
+    tauri
+      .readFile(filePath)
+      .then((source) => !cancelled && setDoc({ source, filePath }))
+      .catch((e) => !cancelled && setError(String(e)));
+    return () => {
+      cancelled = true;
+    };
+  }, [snapshot?.path, snapshot?.report_modified]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // The annotations of the previous snapshot never apply to a new selection.
+  useEffect(() => {
+    setAnnotations([]);
+  }, [snapshot?.path]);
+
+  // Load the annotations of the selected snapshot.
+  useEffect(() => {
+    if (!snapshot) {
+      setAnnotations([]);
+      return;
+    }
+    let cancelled = false;
+    tauri
+      .readAnnotations(snapshot.path)
+      .then((text) => !cancelled && setAnnotations(parseAnnotations(text)))
+      .catch((e) => !cancelled && setError(String(e)));
+    return () => {
+      cancelled = true;
+    };
+  }, [snapshot?.path, snapshot?.annotations_modified]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // A new snapshot starts with no draft, and diffs against its predecessor.
+  useEffect(() => {
+    setDraft(null);
+    setActive(null);
+    setTextSel(null);
+    if (!report || !snapshot) return;
+    const idx = report.snapshots.findIndex((s) => s.name === snapshot.name);
+    const prev = report.snapshots[idx - 1] ?? report.snapshots[idx + 1];
+    setReference(prev?.name ?? null);
+  }, [report?.name, snapshot?.name]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Load the reference document of the diff.
+  const refSnapshot = report?.snapshots.find((s) => s.name === reference) ?? null;
+  useEffect(() => {
+    if (!diffOn || !refSnapshot) {
+      setCompareDoc(null);
+      return;
+    }
+    let cancelled = false;
+    const filePath = joinPath(refSnapshot.path, "report.md");
+    tauri
+      .readFile(filePath)
+      .then((source) => !cancelled && setCompareDoc({ source, filePath }))
+      .catch((e) => !cancelled && setError(String(e)));
+    return () => {
+      cancelled = true;
+    };
+  }, [diffOn, refSnapshot?.path, refSnapshot?.report_modified]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Hash the images of both documents, so the diff detects changed images.
+  useEffect(() => {
+    if (!doc || !compareDoc) return;
+    const paths = [...imagePaths(doc), ...imagePaths(compareDoc)];
+    if (paths.length === 0) return;
+    let cancelled = false;
+    tauri
+      .hashFiles(paths)
+      .then((hashes) => {
+        if (cancelled) return;
+        const map: Record<string, string> = {};
+        paths.forEach((p, i) => {
+          const h = hashes[i];
+          if (h) map[assetUrl(p)] = h;
+        });
+        setImageHashes(map);
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [doc, compareDoc]);
+
+  const saveAnnotations = useCallback(
+    async (list: Annotation[]) => {
+      if (!snapshot) return;
+      setAnnotations(list);
+      try {
+        await tauri.writeAnnotations(snapshot.path, serializeAnnotations(list));
+      } catch (e) {
+        setError(String(e));
       }
-    });
-    return () => {
-      off.then((fn) => fn());
-    };
-  }, [state.tabs]);
+    },
+    [snapshot]
+  );
 
-  // CLI re-target via single-instance.
+  const onSaveDraft = (d: Draft) => {
+    const entry = { quote: d.quote, comment: d.comment.trim() };
+    const list = d.index == null ? [...annotations, entry] : annotations.map((a, i) => (i === d.index ? entry : a));
+    saveAnnotations(list);
+    setActive(d.index ?? list.length - 1);
+    setDraft(null);
+  };
+
+  const onDelete = (index: number) => {
+    saveAnnotations(annotations.filter((_, i) => i !== index));
+    setActive(null);
+  };
+
+  const activate = (index: number) => {
+    setActive(index);
+    articleRef.current
+      ?.querySelector(`mark.galley-annotation[data-annotation="${index}"]`)
+      ?.scrollIntoView({ block: "center", behavior: "smooth" });
+  };
+
+  const onDeleteOld = async (r: Report) => {
+    try {
+      const keep = r.snapshots[r.snapshots.length - 1];
+      if (!keep) return;
+      await tauri.deleteOldSnapshots(r.path, keep.name);
+      applyGalley(await tauri.scanDir());
+    } catch (e) {
+      setError(String(e));
+    }
+  };
+
+  // Shows a search hit: selects its snapshot and, for a hit in the report,
+  // finds the query in the document.
+  const onOpenHit = (hit: SearchHit) => {
+    setSelection({ report: hit.report, snapshot: hit.snapshot });
+    if (hit.file === "report.md") {
+      setFindQuery(allQuery.trim());
+      setFindLine(hit.line - 1);
+      setSearchOpen(true);
+    }
+  };
+
+  const onInitRules = async () => {
+    try {
+      await tauri.initRules();
+      applyGalley(await tauri.scanDir());
+    } catch (e) {
+      setError(String(e));
+    }
+  };
+
+  // Hide the "Annotate" button when the document scrolls.
   useEffect(() => {
-    const off = onCliTarget((t) => {
-      if (t.kind === "file") openFile(t.path);
-      if (t.kind === "folder") {
-        // Sidebar will pick up the new folder via its own folder://changed
-        // listener, but we also bump refreshNonce and scroll it into view.
-        refreshFolders();
-        setTimeout(() => {
-          sidebarRef.current
-            ?.querySelector(`#folder-${cssEscape(folderIdFromPath(t.path) ?? "")}`)
-            ?.scrollIntoView({ block: "start" });
-        }, 100);
-      }
-    });
-    return () => {
-      off.then((fn) => fn());
-    };
-  }, [openFile, refreshFolders]);
+    if (!textSel) return;
+    const hide = () => setTextSel(null);
+    window.addEventListener("scroll", hide, true);
+    return () => window.removeEventListener("scroll", hide, true);
+  }, [textSel]);
 
-  // Map a path back to a folder id for scroll-into-view (best-effort).
-  const [pathToFolderId, setPathToFolderId] = useState<Record<string, string>>({});
   useEffect(() => {
-    const map: Record<string, string> = {};
-    for (const f of folders) map[f.path] = f.id;
-    setPathToFolderId(map);
-  }, [folders]);
-  function folderIdFromPath(p: string): string | null {
-    return pathToFolderId[p] ?? null;
-  }
+    if (!notice) return;
+    const id = setTimeout(() => setNotice(null), 6000);
+    return () => clearTimeout(id);
+  }, [notice]);
 
-  // Global keyboard shortcuts.
+  // Keyboard shortcuts.
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       const meta = e.metaKey || e.ctrlKey;
       const k = e.key.toLowerCase();
-      if (meta && k === "k") {
+      if (meta && e.shiftKey && k === "f") {
         e.preventDefault();
-        setPaletteOpen((v) => !v);
-      } else if (meta && k === "o") {
-        e.preventDefault();
-        handlePickFile();
+        allInputRef.current?.focus();
+        allInputRef.current?.select();
       } else if (meta && k === "f") {
         e.preventDefault();
-        setSearchPaneId(state.activePaneId);
-      } else if (meta && e.key === "\\") {
+        setSearchOpen(true);
+      } else if (meta && k === "p") {
         e.preventDefault();
-        dispatch({ type: "SPLIT", direction: e.shiftKey ? "horizontal" : "vertical" });
-      } else if (meta && k === "w") {
+        exportPdfRef.current?.();
+      } else if (meta && k === "o") {
         e.preventDefault();
-        const tabId = activePane.activeTabId;
-        if (tabId) dispatch({ type: "CLOSE_TAB", tabId, paneId: activePane.id });
-      } else if (meta && (e.key === "=" || e.key === "+")) {
+        pickDir();
+      } else if (meta && (e.key === "=" || e.key === "+" || e.code === "NumpadAdd")) {
         e.preventDefault();
         zoomIn();
-      } else if (meta && e.key === "-") {
+      } else if (meta && (e.key === "-" || e.code === "NumpadSubtract")) {
         e.preventDefault();
         zoomOut();
-      } else if (meta && k === "0") {
+      } else if (meta && (k === "0" || e.code === "Numpad0")) {
         e.preventDefault();
         zoomReset();
       }
     };
+    // Ctrl + mouse wheel changes the text size, as in a browser.
+    const onWheel = (e: WheelEvent) => {
+      if (!(e.ctrlKey || e.metaKey) || e.deltaY === 0) return;
+      e.preventDefault();
+      if (e.deltaY < 0) zoomIn();
+      else zoomOut();
+    };
     window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [state.activePaneId, activePane.activeTabId, activePane.id, zoomIn, zoomOut, zoomReset]);
+    window.addEventListener("wheel", onWheel, { passive: false });
+    return () => {
+      window.removeEventListener("keydown", onKey);
+      window.removeEventListener("wheel", onWheel);
+    };
+  }, [pickDir, zoomIn, zoomOut, zoomReset]);
 
-  // File drop opens as new tab.
-  useEffect(() => {
-    let unlisten: (() => void) | undefined;
-    (async () => {
-      const off = await getCurrentWebview().onDragDropEvent((e) => {
-        if (e.payload.type === "drop" && e.payload.paths.length > 0) {
-          openFile(e.payload.paths[0]);
+  const compare = diffOn && compareDoc ? compareDoc : null;
+  const title = report && snapshot
+    ? `${reportLabel(report.name).title} · Snapshot ${snapshot.name}${compare ? ` · changes since snapshot ${reference}` : ""}`
+    : (galley?.path ?? "No galley directory open");
+
+  // The PDF title is also the default file name, for example
+  // "2026-10-09_1430_cache-design_04" or "..._04_changes-since-03".
+  const exportPdf =
+    report && snapshot && doc
+      ? () => {
+          const name = `${report.name}_${snapshot.name}${compare ? `_changes-since-${reference}` : ""}`;
+          viewerRef.current
+            ?.exportPdf(name)
+            .then((path) => path && setNotice(`Saved ${path}`))
+            .catch((e) => setError(String(e)));
         }
-      });
-      unlisten = off;
-    })();
-    return () => unlisten?.();
-  }, [openFile]);
+      : null;
+  exportPdfRef.current = exportPdf;
 
-  const handlePickFile = async () => {
-    const picked = await openDialog({
-      multiple: false,
-      filters: [{ name: "Markdown", extensions: ["md", "markdown", "mdx"] }],
-    });
-    if (typeof picked === "string") openFile(picked);
-  };
-
-  const handleSplit = (d: SplitDirection) => dispatch({ type: "SPLIT", direction: d });
-  const handleCloseSplit = () => dispatch({ type: "CLOSE_SPLIT" });
-  const handleJumpToFolder = (folderId: string) => {
-    sidebarRef.current
-      ?.querySelector(`#folder-${cssEscape(folderId)}`)
-      ?.scrollIntoView({ block: "start" });
-  };
-
-  const renderPane = (paneId: string) => {
-    const pane = state.panes.find((p) => p.id === paneId)!;
+  if (!galley) {
     return (
-      <Pane
-        key={pane.id}
-        pane={pane}
-        tabs={state.tabs}
-        isFocused={pane.id === state.activePaneId}
-        onSelectTab={(tabId) => dispatch({ type: "SWITCH_TAB", paneId: pane.id, tabId })}
-        onCloseTab={(tabId) => dispatch({ type: "CLOSE_TAB", tabId, paneId: pane.id })}
-        onFocusPane={() => dispatch({ type: "FOCUS_PANE", paneId: pane.id })}
-        searchOpen={searchPaneId === pane.id}
-        onSearchClose={() => setSearchPaneId(null)}
-      />
+      <>
+        <StartScreen recent={recent} onOpen={pickDir} onCreate={createDir} onOpenRecent={openDir} />
+        {error && (
+          <div className="fixed inset-x-0 bottom-0 bg-destructive/10 px-3 py-1 text-xs text-destructive">{error}</div>
+        )}
+      </>
     );
-  };
+  }
 
   return (
     <div className="flex h-full">
-      <div ref={sidebarRef} className="flex h-full min-h-0 shrink-0" style={{ width: sidebarLeftWidth }}>
-        <FolderSidebar
-          activePath={activeTab?.filePath}
-          onOpenFile={openFile}
-          onOpenPalette={() => setPaletteOpen(true)}
-          refreshNonce={sidebarRefresh}
+      <div className="flex h-full min-h-0 shrink-0" style={{ width: sidebarLeftWidth }}>
+        <ReportTree
+          galley={galley}
+          selection={selection}
+          onSelect={setSelection}
+          onOpenDir={pickDir}
+          onInitRules={onInitRules}
+          onDeleteOld={onDeleteOld}
+          search={<SearchBox query={allQuery} onQueryChange={setAllQuery} inputRef={allInputRef} />}
+          results={
+            allQuery.trim() ? <SearchResults query={allQuery} galley={galley} onOpenHit={onOpenHit} /> : null
+          }
         />
       </div>
       <ResizeHandle
@@ -240,68 +414,109 @@ function AppShell() {
       />
       <div className="flex min-w-0 flex-1 flex-col">
         <Toolbar
-          filePath={activeTab?.filePath}
-          onOpenFile={handlePickFile}
-          onSplit={handleSplit}
-          onCloseSplit={handleCloseSplit}
-          isSplit={isSplit}
-          onFind={() => setSearchPaneId(state.activePaneId)}
+          title={title}
+          references={references}
+          diffOn={diffOn}
+          onDiffOn={setDiffOn}
+          reference={reference}
+          onReference={setReference}
+          canCopyPrompt={annotations.length > 0}
+          onCopyPrompt={async () => {
+            if (report && snapshot) {
+              await copyText(buildPrompt(report.name, snapshot.name, report.snapshots.map((s) => s.name)));
+            }
+          }}
+          onFind={() => setSearchOpen(true)}
+          onExportPdf={exportPdf}
         />
+        {error && (
+          <div className="flex items-center justify-between border-b bg-destructive/10 px-3 py-1 text-xs text-destructive">
+            <span className="truncate">{error}</span>
+            <button className="ml-2 underline" onClick={() => setError(null)}>
+              Dismiss
+            </button>
+          </div>
+        )}
+        {notice && (
+          <div className="flex items-center justify-between border-b bg-muted/50 px-3 py-1 text-xs">
+            <span className="truncate">{notice}</span>
+            <button className="ml-2 underline" onClick={() => setNotice(null)}>
+              Dismiss
+            </button>
+          </div>
+        )}
         <div className="flex min-h-0 flex-1">
-          <main className="min-w-0 flex-1">
-            <div
-              className={cn(
-                "flex h-full",
-                state.split === "horizontal" ? "flex-col" : "flex-row"
-              )}
-            >
-              {state.panes.map((p, i) => (
-                <div key={p.id} className="flex min-h-0 min-w-0 flex-1">
-                  {renderPane(p.id)}
-                  {i < state.panes.length - 1 && (
-                    <div
-                      className={cn(
-                        "shrink-0 bg-border",
-                        state.split === "horizontal" ? "h-px w-full" : "h-full w-px"
-                      )}
-                    />
-                  )}
-                </div>
-              ))}
-            </div>
-          </main>
-          {!isSplit && (
-            <>
-              <ResizeHandle
-                side="right"
-                onResize={(w) => setSidebarWidth("right", w)}
-                onReset={() => resetSidebarWidth("right")}
-                className="hidden lg:flex"
+          <main className="relative flex min-w-0 flex-1">
+            {doc ? (
+              <Viewer
+                doc={doc}
+                compare={compare}
+                imageHashes={imageHashes}
+                annotations={annotations}
+                activeAnnotation={active}
+                onSelection={setTextSel}
+                onAnnotationClick={activate}
+                onImageClick={(src, alt) => setImage({ src, alt })}
+                articleRef={articleRef}
+                handleRef={viewerRef}
+                onRendered={() => setContentNonce((n) => n + 1)}
               />
-              <aside className="hidden shrink-0 border-l bg-card/30 lg:block" style={{ width: sidebarRightWidth }}>
-                <TableOfContents source={activeTab?.source ?? ""} />
-              </aside>
-            </>
-          )}
+            ) : (
+              <div className="flex flex-1 items-center justify-center text-sm text-muted-foreground">
+                {galley ? "No report selected." : "Open a galley directory (Ctrl+O)."}
+              </div>
+            )}
+            <DocSearch
+              open={searchOpen}
+              onClose={() => setSearchOpen(false)}
+              query={findQuery}
+              onQueryChange={(q) => {
+                setFindQuery(q);
+                setFindLine(null);
+              }}
+              targetLine={findLine}
+              containerRef={articleRef}
+              contentNonce={contentNonce}
+            />
+          </main>
+          <ResizeHandle
+            side="right"
+            onResize={(w) => setSidebarWidth("right", w)}
+            onReset={() => resetSidebarWidth("right")}
+          />
+          <aside className="shrink-0 border-l bg-card/30" style={{ width: sidebarRightWidth }}>
+            <AnnotationsPanel
+              enabled={snapshot != null}
+              annotations={annotations}
+              active={active}
+              onActivate={activate}
+              draft={draft}
+              onDraft={setDraft}
+              onSave={onSaveDraft}
+              onDelete={onDelete}
+            />
+          </aside>
         </div>
       </div>
-      <CommandPalette
-        open={paletteOpen}
-        onOpenChange={setPaletteOpen}
-        onOpenFile={openFile}
-        onSplit={handleSplit}
-        onCloseSplit={handleCloseSplit}
-        isSplit={isSplit}
-        folders={folders}
-        onJumpToFolder={handleJumpToFolder}
-      />
+      {textSel && (
+        <Button
+          size="xs"
+          className="fixed z-50 shadow-md"
+          style={{ top: textSel.rect.bottom + 6, left: textSel.rect.left }}
+          onMouseDown={(e) => e.preventDefault()}
+          onClick={() => {
+            setDraft({ index: null, quote: textSel.quote, comment: "" });
+            setTextSel(null);
+            window.getSelection()?.removeAllRanges();
+          }}
+        >
+          <MessageSquarePlus />
+          Annotate
+        </Button>
+      )}
+      {image && <ImageViewer src={image.src} alt={image.alt} onClose={() => setImage(null)} />}
     </div>
   );
-}
-
-function cssEscape(s: string): string {
-  // Minimal escape for use in attribute selectors with UUID-like ids.
-  return s.replace(/([^a-zA-Z0-9_-])/g, "\\$1");
 }
 
 export default function App() {

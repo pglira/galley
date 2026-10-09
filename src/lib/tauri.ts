@@ -1,75 +1,76 @@
-import { invoke } from "@tauri-apps/api/core";
+import { convertFileSrc, invoke } from "@tauri-apps/api/core";
 import { listen, type UnlistenFn } from "@tauri-apps/api/event";
+import { openUrl as openerOpenUrl } from "@tauri-apps/plugin-opener";
 
-export type InitialTarget =
-  | { kind: "file"; path: string }
-  | { kind: "folder"; path: string }
-  | { kind: "none" };
-
-export interface Folder {
-  id: string;
+export interface Snapshot {
   name: string;
   path: string;
-  added_at: string;
+  report_modified: number;
+  annotations_modified: number | null;
 }
 
-export interface AnnotatedFolder extends Folder {
-  repo_root: string | null;
-  repo_name: string | null;
-}
-
-export interface TreeNode {
+export interface Report {
   name: string;
   path: string;
-  is_dir: boolean;
-  children: TreeNode[];
+  snapshots: Snapshot[];
 }
 
-export interface IndexedFile {
-  folder_id: string;
-  folder_name: string;
-  absolute_path: string;
-  relative_path: string;
+export interface Galley {
+  path: string;
+  has_rules: boolean;
+  reports: Report[];
 }
 
-export interface SearchResult extends IndexedFile {
-  score: number;
+export interface SearchHit {
+  report: string;
+  snapshot: string;
+  file: "report.md" | "annotations.md";
+  line: number;
+  text: string;
 }
 
-export const tauri = {
-  getInitialTarget: () => invoke<InitialTarget>("get_initial_target"),
-  setInitialTarget: (target: InitialTarget) => invoke<void>("set_initial_target", { target }),
-  readFile: (path: string) => invoke<string>("read_file", { path }),
-  listFolders: () => invoke<Folder[]>("list_folders"),
-  listFoldersGrouped: () => invoke<AnnotatedFolder[]>("list_folders_grouped"),
-  addFolder: (path: string) => invoke<Folder>("add_folder", { path }),
-  removeFolder: (id: string) => invoke<void>("remove_folder", { id }),
-  readFolderTree: (id: string) => invoke<TreeNode>("read_folder_tree", { id }),
-  searchFiles: (query: string, limit = 50) =>
-    invoke<SearchResult[]>("search_files", { args: { query, limit } }),
-  getRecentFiles: () => invoke<string[]>("get_recent_files"),
-  saveTheme: (theme: string) => invoke<void>("save_theme", { theme }),
-  savePreferences: (prefs: PreferencesPayload) =>
-    invoke<void>("save_preferences", { prefs }),
-  loadPreferences: () => invoke<PreferencesPayload>("load_preferences"),
-};
+export interface SearchResult {
+  hits: SearchHit[];
+  truncated: boolean;
+}
 
 export interface PreferencesPayload {
   zoom: number | null;
+  paper_width: number | null;
   sidebar_left_width: number | null;
   sidebar_right_width: number | null;
   copy_as_markdown: boolean | null;
-  sidebar_group_by_repo: boolean | null;
 }
 
-export function onFolderChanged(cb: (folderId: string) => void): Promise<UnlistenFn> {
-  return listen<string>("folder://changed", (e) => cb(e.payload));
+export const tauri = {
+  getInitialDir: () => invoke<string | null>("get_initial_dir"),
+  getRecentDirs: () => invoke<string[]>("get_recent_dirs"),
+  createDir: (path: string) => invoke<void>("create_dir", { path }),
+  openDir: (path: string) => invoke<Galley>("open_dir", { path }),
+  scanDir: () => invoke<Galley>("scan_dir"),
+  initRules: () => invoke<void>("init_rules"),
+  readFile: (path: string) => invoke<string>("read_file", { path }),
+  readAnnotations: (snapshot: string) => invoke<string>("read_annotations", { snapshot }),
+  writeAnnotations: (snapshot: string, text: string) =>
+    invoke<void>("write_annotations", { snapshot, text }),
+  deleteOldSnapshots: (report: string, keep: string) => invoke<number>("delete_old_snapshots", { report, keep }),
+  search: (query: string) => invoke<SearchResult>("search", { query }),
+  hashFiles: (paths: string[]) => invoke<(string | null)[]>("hash_files", { paths }),
+  exportPdf: (path: string) => invoke<void>("export_pdf", { path }),
+  savePreferences: (prefs: PreferencesPayload) => invoke<void>("save_preferences", { prefs }),
+  loadPreferences: () => invoke<PreferencesPayload>("load_preferences"),
+};
+
+export function onOpenDir(cb: (path: string) => void): Promise<UnlistenFn> {
+  return listen<string>("galley://open", (e) => cb(e.payload));
 }
 
-export function onFileChanged(cb: (paths: string[]) => void): Promise<UnlistenFn> {
-  return listen<string[]>("file://changed", (e) => cb(e.payload));
+// The URL of a file in the open galley directory, served by the `galley` URI scheme.
+export function assetUrl(absolutePath: string): string {
+  return convertFileSrc(absolutePath, "galley");
 }
 
-export function onCliTarget(cb: (t: InitialTarget) => void): Promise<UnlistenFn> {
-  return listen<InitialTarget>("cli://target", (e) => cb(e.payload));
+// Opens a web or mail link in the default application of the system.
+export function openUrl(url: string): Promise<void> {
+  return openerOpenUrl(url);
 }

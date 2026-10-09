@@ -5,12 +5,6 @@ import taskLists from "markdown-it-task-lists";
 import frontMatter from "markdown-it-front-matter";
 import DOMPurify from "dompurify";
 
-export interface ParsedHeading {
-  level: number;
-  text: string;
-  slug: string;
-}
-
 const md = new MarkdownIt({
   html: true,
   linkify: true,
@@ -91,27 +85,29 @@ md.renderer.rules.link_open = (tokens, idx, options, env, self) => {
   return defaultLink(tokens, idx, options, env, self);
 };
 
-export function renderMarkdown(source: string): string {
+// Rewrites the `src` of every <img>, from Markdown or raw HTML, through
+// `resolveImage`. The hook runs after DOMPurify's URI checks, so the resolved
+// URL can use a custom scheme such as the Tauri asset protocol.
+export function renderMarkdown(source: string, resolveImage?: (src: string) => string): string {
   const html = md.render(source);
-  return DOMPurify.sanitize(html, {
-    ADD_ATTR: ["target", "class", "id", "aria-hidden", "data-source-map"],
-    ADD_TAGS: ["section"],
-  });
-}
-
-export function extractHeadings(source: string): ParsedHeading[] {
-  const tokens = md.parse(source, {});
-  const out: ParsedHeading[] = [];
-  for (let i = 0; i < tokens.length; i++) {
-    const t = tokens[i];
-    if (t.type !== "heading_open") continue;
-    const level = parseInt(t.tag.slice(1), 10);
-    const inline = tokens[i + 1];
-    const text = inline?.content || "";
-    const slug = (t.attrGet("id") as string) || text.toLowerCase().replace(/\s+/g, "-");
-    out.push({ level, text, slug });
+  if (resolveImage) {
+    DOMPurify.addHook("afterSanitizeAttributes", (node) => {
+      if (node.tagName !== "IMG") return;
+      const src = node.getAttribute("src");
+      if (!src) return;
+      node.setAttribute("data-src", src);
+      node.setAttribute("src", resolveImage(src));
+    });
   }
-  return out;
+  try {
+    return DOMPurify.sanitize(html, {
+      ADD_ATTR: ["target", "class", "id", "aria-hidden", "data-source-map"],
+      ADD_TAGS: ["section"],
+      // A <style> element in a report would restyle the whole app.
+      FORBID_TAGS: ["style"],
+    });
+  } finally {
+    if (resolveImage) DOMPurify.removeHook("afterSanitizeAttributes");
+  }
 }
 
-export const _md = md; // exported for tests

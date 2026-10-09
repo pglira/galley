@@ -1,47 +1,19 @@
-use serde::{Deserialize, Serialize};
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
-#[serde(tag = "kind", rename_all = "lowercase")]
-pub enum InitialTarget {
-    File { path: String },
-    Folder { path: String },
-    None,
-}
-
-/// Resolve a CLI argv into an InitialTarget.
-///
-/// - `marky FILE.md` → File
-/// - `marky DIR/`     → Folder
-/// - `marky` (none)   → None
-/// - missing path     → None (we don't error; user gets empty state)
-pub fn resolve(args: &[String]) -> InitialTarget {
-    let raw = match args.iter().skip(1).find(|a| !a.starts_with("--")) {
-        Some(a) => a,
-        None => return InitialTarget::None,
-    };
-
-    let path = PathBuf::from(raw);
-    let abs = match std::fs::canonicalize(&path) {
-        Ok(p) => p,
-        Err(_) => return InitialTarget::None,
-    };
-
-    classify(&abs)
-}
-
-pub(crate) fn classify(path: &Path) -> InitialTarget {
-    let s = match path.to_str() {
-        Some(s) => s.to_string(),
-        None => return InitialTarget::None,
-    };
-    if path.is_dir() {
-        InitialTarget::Folder { path: s }
-    } else if path.is_file() {
-        InitialTarget::File { path: s }
+/// Resolves the galley directory from argv: the first non-flag argument, if
+/// it is a directory. A file argument resolves to the galley directory that
+/// contains it, found as the nearest ancestor with `GALLEY.md`.
+pub fn resolve(args: &[String]) -> Option<String> {
+    let raw = args.iter().skip(1).find(|a| !a.starts_with("--"))?;
+    let abs = std::fs::canonicalize(PathBuf::from(raw)).ok()?;
+    let dir = if abs.is_dir() {
+        abs
     } else {
-        InitialTarget::None
-    }
+        abs.ancestors()
+            .find(|d| d.join(crate::galley::RULES_FILE).is_file())?
+            .to_path_buf()
+    };
+    dir.to_str().map(String::from)
 }
 
 #[cfg(test)]
@@ -50,47 +22,42 @@ mod tests {
     use std::fs;
     use tempfile::tempdir;
 
-    #[test]
-    fn resolves_no_args_to_none() {
-        let args = vec!["marky".to_string()];
-        assert_eq!(resolve(&args), InitialTarget::None);
+    fn args(p: &std::path::Path) -> Vec<String> {
+        vec!["galley".into(), p.to_string_lossy().into_owned()]
     }
 
     #[test]
-    fn resolves_missing_path_to_none() {
-        let args = vec!["marky".into(), "/nonexistent/path/xyz123".into()];
-        assert_eq!(resolve(&args), InitialTarget::None);
+    fn no_args_is_none() {
+        assert_eq!(resolve(&["galley".to_string()]), None);
     }
 
     #[test]
-    fn resolves_file_to_file() {
+    fn missing_path_is_none() {
+        assert_eq!(resolve(&["galley".into(), "/nonexistent/xyz123".into()]), None);
+    }
+
+    #[test]
+    fn directory_resolves_to_itself() {
         let dir = tempdir().unwrap();
-        let p = dir.path().join("a.md");
-        fs::write(&p, "# hi").unwrap();
-        let args = vec!["marky".into(), p.to_string_lossy().into_owned()];
-        match resolve(&args) {
-            InitialTarget::File { path } => assert!(path.ends_with("a.md")),
-            other => panic!("expected file, got {:?}", other),
-        }
+        let canon = fs::canonicalize(dir.path()).unwrap();
+        assert_eq!(resolve(&args(dir.path())), canon.to_str().map(String::from));
     }
 
     #[test]
-    fn resolves_dir_to_folder() {
+    fn file_resolves_to_galley_root() {
         let dir = tempdir().unwrap();
-        let args = vec!["marky".into(), dir.path().to_string_lossy().into_owned()];
-        matches!(resolve(&args), InitialTarget::Folder { .. });
+        fs::write(dir.path().join("GALLEY.md"), "").unwrap();
+        let snap = dir.path().join("r/01");
+        fs::create_dir_all(&snap).unwrap();
+        fs::write(snap.join("report.md"), "").unwrap();
+        let canon = fs::canonicalize(dir.path()).unwrap();
+        assert_eq!(resolve(&args(&snap.join("report.md"))), canon.to_str().map(String::from));
     }
 
     #[test]
-    fn skips_flag_args() {
+    fn flags_are_skipped() {
         let dir = tempdir().unwrap();
-        let p = dir.path().join("b.md");
-        fs::write(&p, "x").unwrap();
-        let args = vec![
-            "marky".into(),
-            "--debug".into(),
-            p.to_string_lossy().into_owned(),
-        ];
-        matches!(resolve(&args), InitialTarget::File { .. });
+        let a = vec!["galley".into(), "--flag".into(), dir.path().to_string_lossy().into_owned()];
+        assert!(resolve(&a).is_some());
     }
 }

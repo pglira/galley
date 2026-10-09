@@ -1,25 +1,28 @@
-import { describe, it, expect, beforeEach } from "vitest";
+import { describe, it, expect } from "vitest";
 import { renderToString } from "react-dom/server";
-import { ThemeProvider, useTheme } from "./theme";
+import { ThemeProvider, useTheme, toneOf, DEFAULT_PAPER } from "./theme";
 
 function Probe() {
-  const { theme, resolved } = useTheme();
-  return <span data-testid="probe">{`${theme}:${resolved}`}</span>;
+  const { paper, resolved } = useTheme();
+  return <span>{`${paper}:${resolved}`}</span>;
 }
 
-describe("ThemeProvider", () => {
-  beforeEach(() => {
+describe("theme", () => {
+  it("provides the default paper", () => {
     localStorage.clear();
-    document.documentElement.classList.remove("dark");
-  });
-
-  it("provides a theme context (SSR string render smoke)", () => {
     const html = renderToString(
       <ThemeProvider>
         <Probe />
       </ThemeProvider>
     );
-    expect(html).toContain("system:");
+    expect(html).toContain(`${DEFAULT_PAPER}:light`);
+  });
+
+  it("finds the tone of a paper color", () => {
+    expect(toneOf("#ffffff")).toBe("light");
+    expect(toneOf("#f1e6cf")).toBe("light");
+    expect(toneOf("#2a2c33")).toBe("dark");
+    expect(toneOf("#000000")).toBe("dark");
   });
 
   it("throws if useTheme used outside provider", () => {

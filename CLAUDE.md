@@ -1,117 +1,53 @@
-# CLAUDE.md — Marky
-
-Instructions for future Claude sessions working on this repo. Read this first.
+# CLAUDE.md — Galley
 
 ## What this is
 
-`marky` is a Tauri-based desktop markdown viewer. Primary use case: viewing Claude-generated plans and other markdown docs with good rendering of tables, code blocks, task lists, math, and mermaid diagrams. Launched via `marky FILENAME` to open a file or `marky FOLDER` to open a folder as a **folder**. Folders persist across sessions (Obsidian-style), shown in a left sidebar. A **Cmd+K command palette** fuzzy-searches files across all folders.
+Galley is a Tauri desktop app to review Markdown reports from AI agents. It opens a **galley directory**, shows its reports and snapshots, lets the user annotate text, diffs snapshots, and copies a prompt for the agent. See `README.md` for the workflow and `PLAN.md` for the scope.
 
-See `PLAN.md` for the full roadmap and architectural decisions.
+Galley is a fork of Marky. Keep the scope small: no editor, no agent integration. Files are the only channel to the agent.
 
-## Stack (authoritative — do not swap without asking)
-
-- **Tauri v2** — desktop shell, Rust backend
-- **Vite + React + TypeScript** — frontend
-- **pnpm** — package manager (not npm, not yarn)
-- **markdown-it** — parser (not remark, not marked)
-- **Shiki** — syntax highlighting (not highlight.js, not Prism)
-- **shadcn/ui** — UI component primitives (Radix-based, copied into `src/components/ui/`)
-- **Tailwind CSS** — styling
-- **KaTeX** for math, **mermaid** for diagrams
-- **nucleo** (Rust) — fuzzy matcher for Cmd+K file search
-- **cmdk** via shadcn `<Command />` — command palette UI
-- **notify** (Rust) — file watching per folder
-- **DOMPurify** — sanitize rendered HTML before injection
-
-If a request would require swapping one of these, stop and confirm.
-
-## Project layout
+## Galley directory
 
 ```
-src-tauri/   Rust backend — CLI parsing, file I/O, file watching, Tauri commands
-src/         React frontend — rendering pipeline, UI components
-scripts/     Install / dev helper scripts
+<root>/GALLEY.md                         rules for the agent (template: src-tauri/src/GALLEY.md)
+<root>/<YYYY-MM-DD_HHMM_name>/<NN>/report.md       agent
+<root>/<YYYY-MM-DD_HHMM_name>/<NN>/images/         agent
+<root>/<YYYY-MM-DD_HHMM_name>/<NN>/annotations.md  Galley
 ```
 
-See `PLAN.md` → "Project Structure" for the full tree.
+- Galley writes only `annotations.md` and `GALLEY.md`, and deletes old snapshots on request. It never writes `report.md` or images.
+- Prompts for the agent use only paths relative to the galley root. The agent can see the directory under another absolute path (container, SSH host).
+- The format of `annotations.md` is documented in `src-tauri/src/GALLEY.md` and implemented in `src/lib/annotations.ts`. Change both together.
 
-## Core conventions
+## Stack (do not swap without asking)
 
-### Rust (`src-tauri/`)
-- Keep `main.rs` thin — delegate to `cli.rs`, `fs.rs`, `folder.rs`, `search.rs`, `settings.rs`, `commands.rs`.
-- All frontend-callable functions live in `commands.rs` and are registered in `main.rs`'s `invoke_handler`.
-- Follow the `golang-style` skill's spirit even for Rust: happy path unindented, errors wrapped with context (`anyhow::Context` or `thiserror`).
-- File paths crossing the Rust↔JS boundary are always absolute strings.
-- **Folder state** lives in a single `Arc<RwLock<FolderRegistry>>` in Tauri managed state. Don't scatter folder state across modules.
-- **Fuzzy search index** is rebuilt from the registry on watcher events, debounced at 200ms. Keep it in-memory only.
+Tauri v2 (Rust), Vite + React + TypeScript, pnpm, markdown-it, Shiki, mermaid, shadcn/ui, Tailwind CSS, DOMPurify, `diff` (jsdiff).
 
-### Frontend (`src/`)
-- Markdown pipeline lives in `src/lib/markdown.ts` as a single configured `markdown-it` instance. Do not create ad-hoc instances elsewhere.
-- Shiki highlighter is a lazy singleton in `src/lib/highlight.ts` — loading grammars is expensive, load once.
-- All `invoke()` calls go through typed wrappers in `src/lib/tauri.ts`. Do not call `@tauri-apps/api` `invoke` directly from components.
-- Components are function components with hooks. No class components.
+## Layout
 
-### UI components
-- Use **shadcn/ui** primitives from `src/components/ui/` for dialogs, buttons, dropdowns, tooltips, command palette, scroll areas, etc.
-- Add new shadcn components via `pnpm dlx shadcn@latest add <component>` — do not hand-write primitives that shadcn already provides.
-- Shadcn files in `src/components/ui/` are **owned by us** once added — edit them freely. Don't re-run `add` on an existing component without intent to overwrite.
-- App-specific composite components (Viewer, Toolbar, etc.) live in `src/components/` and compose the primitives from `ui/`.
+- `src-tauri/src/galley.rs` — scan, annotations I/O, deletion, image hashes. All paths are checked to be inside the open galley root.
+- `src-tauri/src/commands.rs` — Tauri commands; the open root lives in `OpenDir` managed state.
+- `src-tauri/src/protocol.rs` — the `galley` URI scheme for the images of the open galley.
+- `src-tauri/src/pdf.rs` — PDF export through WebKitGTK (Linux); other platforms use the print dialog.
+- `src/App.tsx` — state: open directory, selection, diff, annotations. Polls `scan_dir` every 2 s (works on sshfs and container volumes, where file events do not).
+- `src/components/Viewer.tsx` — rendering pipeline: markdown → optional diff → Shiki/mermaid → annotation marks.
+- `src/lib/diff.ts` — block diff of rendered HTML with word-level diff inside text blocks.
+- `src/lib/textRange.ts` — character index over DOM text, wrap and insert helpers.
+- `src/lib/prompt.ts` — the prompt for the agent.
+- `src/lib/enhance.ts` — Shiki and mermaid on rendered HTML; used by the viewer and the PDF export.
+- `src/lib/print.ts` — PDF export: renders the report into `#print-root`, which only print media shows.
+- `src/components/SearchPanel.tsx` — search in all reports (`search` command in `galley.rs`).
 
-### Styling
-- Tailwind for layout and component chrome.
-- shadcn's CSS variables (`--background`, `--foreground`, `--muted`, etc.) drive theme colors. Prefer those tokens over raw Tailwind colors so light/dark stay consistent.
-- `src/styles/markdown.css` owns prose styles (headings, paragraphs, tables, blockquotes). Keep markdown styling there, not inline on components. Reference shadcn CSS variables where it makes sense.
-- Theme switching toggles the `dark` class on `<html>` (shadcn's default). System/light/dark via a small theme provider.
+## Conventions
 
-## Security
-
-- **Always sanitize rendered HTML with DOMPurify** before setting `dangerouslySetInnerHTML`. Markdown files may contain raw HTML.
-- External links (`target="_blank"`) must go through the Tauri shell plugin to open in the system browser, not the webview.
-- Tauri `allowlist` / capabilities: grant only `fs:read` on user-selected paths, not blanket filesystem access.
-
-## Running / building
-
-```bash
-pnpm install
-pnpm tauri dev           # dev with HMR
-pnpm tauri build         # production bundle (.app + .dmg on mac)
-./scripts/install-cli.sh # symlink marky binary to ~/.local/bin
-```
+- All `invoke()` calls go through `src/lib/tauri.ts`.
+- One markdown-it instance in `src/lib/markdown.ts`. Sanitize all HTML with DOMPurify.
+- Relative image paths resolve against the document and load through the `galley` URI scheme (`src-tauri/src/protocol.rs`). It serves only files inside the open galley root. The CSP in `index.html` allows images only from the app, this scheme and `data:`.
+- Markdown styles live in `src/styles/markdown.css`, including the diff and annotation styles.
+- The app chrome is always dark. The report renders on a `.paper` element with a selectable color (`src/lib/theme.tsx`). `.paper-light` and `.paper-dark` set the color variables for content on the paper; Shiki and mermaid use the tone of the paper.
+- `scripts/install.sh` builds the release and installs the launcher, the desktop entry and the icons below `$PREFIX`.
 
 ## Testing
 
-- Rust: `cargo test` inside `src-tauri/`.
-- Frontend: Vitest for `lib/` functions (markdown pipeline, path helpers). No need to test components heavily — this is a viewer, behavior is mostly visual.
-- Before reporting a task done, run `pnpm tauri dev` and actually view a markdown file. Type checks don't catch rendering bugs.
-
-## What not to do
-
-- Don't add Electron fallbacks or wrappers.
-- Don't add a markdown editor — this is read-only by design. No contenteditable, no textareas for editing.
-- Don't persist user data outside `app_data_dir()`.
-- Don't fetch remote resources at runtime (except images referenced in the markdown itself). No telemetry, no auto-update pings without explicit opt-in.
-- Don't over-abstract. This is a single-purpose app — keep the component tree flat.
-
-## When adding a new markdown feature
-
-1. Is there a `markdown-it-*` plugin? Prefer that over a custom renderer rule.
-2. Register it in `src/lib/markdown.ts`.
-3. Add styling to `src/styles/markdown.css`.
-4. Add a fixture to `src/lib/__fixtures__/` and a Vitest snapshot.
-
-## Folder conventions
-
-- A folder is a **pointer to a folder** — Marky never writes inside the folder. All folder state (name, id) lives in Marky's `app_data_dir/settings.json`.
-- Default ignore list for folder trees: hidden dotfiles, `node_modules`, `.git`, `target`, `dist`, `build`. Centralize this in `folder.rs::DEFAULT_IGNORES`.
-- Default file extensions shown: `.md`, `.markdown`, `.mdx`.
-- Folder IDs are UUIDs generated on add. Paths alone aren't stable identifiers (folders can move).
-
-## Cmd+K conventions
-
-- One canonical palette component: `CommandPalette.tsx`. Do not build ad-hoc search dialogs elsewhere.
-- Palette sources are **pluggable** — each source is `{ id, label, search(query) -> results }`. Adding a new source (e.g. headings in current file) means adding a source, not forking the palette.
-- Fuzzy matching for files happens in Rust (`nucleo`), not in JS. Keep the frontend dumb: query in, ranked results out.
-
-## Current status
-
-Planning complete (this doc + `PLAN.md`). No code scaffolded yet. Next step: `pnpm create tauri-app` with the React + TS template, then wire up the Phase 1 checklist in `PLAN.md`.
+- `pnpm test` and `pnpm typecheck` for the frontend; `cargo test` in `src-tauri/`.
+- Before reporting a task done, run `pnpm tauri dev` on a galley directory with images and look at the result.

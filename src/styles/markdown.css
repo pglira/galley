@@ -1,11 +1,10 @@
 @reference "./index.css";
 
 .markdown-body {
-  @apply text-foreground leading-7;
-  font-size: 0.9375rem;
-  max-width: 860px;
-  margin: 0 auto;
-  padding: 2rem 2.5rem 6rem;
+  @apply text-foreground;
+  line-height: 1.85;
+  font-size: calc(0.9375 * var(--doc-rem));
+  padding: calc(2 * var(--doc-rem)) calc(2.5 * var(--doc-rem)) calc(6 * var(--doc-rem));
 }
 
 .markdown-body > *:first-child { margin-top: 0; }
@@ -18,18 +17,18 @@
 .markdown-body h5,
 .markdown-body h6 {
   @apply font-semibold tracking-tight;
-  margin-top: 2rem;
-  margin-bottom: 0.75rem;
-  scroll-margin-top: 4rem;
+  margin-top: calc(2 * var(--doc-rem));
+  margin-bottom: calc(0.75 * var(--doc-rem));
+  scroll-margin-top: calc(4 * var(--doc-rem));
 }
-.markdown-body h1 { font-size: 2rem; line-height: 1.2; border-bottom: 1px solid var(--border); padding-bottom: 0.4em; }
-.markdown-body h2 { font-size: 1.5rem; line-height: 1.3; border-bottom: 1px solid var(--border); padding-bottom: 0.3em; }
-.markdown-body h3 { font-size: 1.25rem; }
-.markdown-body h4 { font-size: 1.05rem; }
-.markdown-body h5 { font-size: 0.95rem; @apply text-muted-foreground; }
-.markdown-body h6 { font-size: 0.85rem; @apply text-muted-foreground uppercase tracking-wider; }
+.markdown-body h1 { font-size: calc(2 * var(--doc-rem)); line-height: 1.2; border-bottom: 1px solid var(--border); padding-bottom: 0.4em; }
+.markdown-body h2 { font-size: calc(1.5 * var(--doc-rem)); line-height: 1.3; border-bottom: 1px solid var(--border); padding-bottom: 0.3em; }
+.markdown-body h3 { font-size: calc(1.25 * var(--doc-rem)); }
+.markdown-body h4 { font-size: calc(1.05 * var(--doc-rem)); }
+.markdown-body h5 { font-size: calc(0.95 * var(--doc-rem)); @apply text-muted-foreground; }
+.markdown-body h6 { font-size: calc(0.85 * var(--doc-rem)); @apply text-muted-foreground uppercase tracking-wider; }
 
-.markdown-body p { margin: 0.75rem 0; }
+.markdown-body p { margin: calc(0.75 * var(--doc-rem)) 0; }
 .markdown-body a { @apply text-primary underline underline-offset-2; }
 .markdown-body a:hover { @apply opacity-80; }
 
@@ -39,17 +38,17 @@
 
 .markdown-body ul,
 .markdown-body ol {
-  margin: 0.75rem 0;
-  padding-left: 1.5rem;
+  margin: calc(0.75 * var(--doc-rem)) 0;
+  padding-left: calc(1.5 * var(--doc-rem));
 }
 .markdown-body ul { list-style: disc; }
 .markdown-body ol { list-style: decimal; }
-.markdown-body li { margin: 0.25rem 0; }
-.markdown-body li > ul, .markdown-body li > ol { margin: 0.25rem 0; }
+.markdown-body li { margin: calc(0.25 * var(--doc-rem)) 0; }
+.markdown-body li > ul, .markdown-body li > ol { margin: calc(0.25 * var(--doc-rem)) 0; }
 
 .markdown-body .task-list-item { list-style: none; margin-left: -1.25rem; }
 .markdown-body .task-list-item input[type="checkbox"] {
-  margin-right: 0.5rem;
+  margin-right: calc(0.5 * var(--doc-rem));
   vertical-align: middle;
   accent-color: var(--primary);
 }
@@ -57,27 +56,27 @@
 .markdown-body blockquote {
   @apply text-muted-foreground;
   border-left: 3px solid var(--border);
-  padding: 0.25rem 1rem;
-  margin: 1rem 0;
+  padding: calc(0.25 * var(--doc-rem)) calc(1 * var(--doc-rem));
+  margin: calc(1 * var(--doc-rem)) 0;
 }
 
 .markdown-body hr {
   border: none;
   border-top: 1px solid var(--border);
-  margin: 2rem 0;
+  margin: calc(2 * var(--doc-rem)) 0;
 }
 
 .markdown-body table {
   width: 100%;
   border-collapse: collapse;
-  margin: 1rem 0;
+  margin: calc(1 * var(--doc-rem)) 0;
   font-size: 0.92em;
   display: block;
   overflow-x: auto;
 }
 .markdown-body th, .markdown-body td {
   border: 1px solid var(--border);
-  padding: 0.5rem 0.75rem;
+  padding: calc(0.5 * var(--doc-rem)) calc(0.75 * var(--doc-rem));
   text-align: left;
 }
 .markdown-body th { @apply bg-muted font-semibold; }
@@ -92,8 +91,8 @@
 
 .markdown-body pre {
   position: relative;
-  margin: 1rem 0;
-  border-radius: 0.5rem;
+  margin: calc(1 * var(--doc-rem)) 0;
+  border-radius: calc(0.5 * var(--doc-rem));
   background: var(--muted);
   border: 1px solid var(--border);
   overflow: hidden;
@@ -101,7 +100,7 @@
 .markdown-body pre > code,
 .markdown-body pre.shiki {
   display: block;
-  padding: 1rem 1.1rem;
+  padding: calc(1 * var(--doc-rem)) calc(1.1 * var(--doc-rem));
   font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
   font-size: 0.86em;
   line-height: 1.55;
@@ -111,16 +110,16 @@
 /* Shiki paints inline color/background on the <pre> and on every token
    <span> based on the theme passed at render time, so no extra mapping
    needed here. We just keep padding consistent with our own pre rule. */
-.markdown-body pre.shiki { padding: 1rem 1.1rem; }
+.markdown-body pre.shiki { padding: calc(1 * var(--doc-rem)) calc(1.1 * var(--doc-rem)); }
 .markdown-body pre.shiki code { background: transparent; padding: 0; }
 
 .markdown-body .copy-code-btn {
   position: absolute;
-  top: 0.4rem;
-  right: 0.4rem;
-  font-size: 0.72rem;
-  padding: 0.2rem 0.55rem;
-  border-radius: 0.35rem;
+  top: calc(0.4 * var(--doc-rem));
+  right: calc(0.4 * var(--doc-rem));
+  font-size: calc(0.72 * var(--doc-rem));
+  padding: calc(0.2 * var(--doc-rem)) calc(0.55 * var(--doc-rem));
+  border-radius: calc(0.35 * var(--doc-rem));
   background: color-mix(in oklch, var(--background) 75%, transparent);
   border: 1px solid var(--border);
   color: var(--muted-foreground);
@@ -131,14 +130,14 @@
 .markdown-body pre:hover .copy-code-btn { opacity: 1; }
 .markdown-body .copy-code-btn:hover { color: var(--foreground); }
 
-.markdown-body img { max-width: 100%; border-radius: 0.4rem; }
+.markdown-body img { max-width: 100%; border-radius: calc(0.4 * var(--doc-rem)); }
 
 .markdown-body .mermaid-block {
   background: var(--muted);
   border: 1px solid var(--border);
-  border-radius: 0.5rem;
-  padding: 1rem;
-  margin: 1rem 0;
+  border-radius: calc(0.5 * var(--doc-rem));
+  padding: calc(1 * var(--doc-rem));
+  margin: calc(1 * var(--doc-rem)) 0;
   text-align: center;
   overflow-x: auto;
 }
@@ -157,9 +156,101 @@
 }
 
 .markdown-body .footnotes {
-  margin-top: 3rem;
-  padding-top: 1rem;
+  margin-top: calc(3 * var(--doc-rem));
+  padding-top: calc(1 * var(--doc-rem));
   border-top: 1px solid var(--border);
   font-size: 0.9em;
   @apply text-muted-foreground;
+}
+
+/* Diff against a reference snapshot. */
+.markdown-body {
+  --diff-add-bg: oklch(0.93 0.08 150);
+  --diff-del-bg: oklch(0.93 0.06 25);
+  --diff-add-line: oklch(0.65 0.15 150);
+  --diff-del-line: oklch(0.62 0.18 25);
+}
+.paper-dark .markdown-body {
+  --diff-add-bg: oklch(0.35 0.08 150);
+  --diff-del-bg: oklch(0.35 0.08 25);
+}
+.markdown-body ins.diff-ins {
+  text-decoration: none;
+  background: var(--diff-add-bg);
+  border-radius: 2px;
+}
+.markdown-body del.diff-del {
+  background: var(--diff-del-bg);
+  border-radius: 2px;
+  text-decoration: line-through;
+  opacity: 0.8;
+}
+.markdown-body .diff-added,
+.markdown-body .diff-removed,
+.markdown-body .diff-changed {
+  box-shadow: -0.6rem 0 0 0 var(--diff-add-line);
+}
+.markdown-body .diff-added { background: var(--diff-add-bg); }
+.markdown-body .diff-removed {
+  background: var(--diff-del-bg);
+  box-shadow: -0.6rem 0 0 0 var(--diff-del-line);
+  opacity: 0.75;
+}
+.markdown-body .diff-removed,
+.markdown-body .diff-removed * { text-decoration: line-through; }
+.markdown-body .diff-removed img,
+.markdown-body .diff-removed .mermaid-block { text-decoration: none; }
+.markdown-body img.diff-img-changed { outline: 3px solid var(--diff-add-line); outline-offset: 2px; }
+
+/* Quotes of annotations. */
+.markdown-body mark.galley-annotation {
+  background: color-mix(in oklch, var(--primary) 18%, transparent);
+  color: inherit;
+  border-bottom: 2px solid color-mix(in oklch, var(--primary) 60%, transparent);
+  cursor: pointer;
+}
+.markdown-body mark.galley-annotation.active {
+  background: color-mix(in oklch, var(--primary) 35%, transparent);
+}
+
+/* The paper: the page that holds the rendered document. */
+.paper {
+  /* The unit of all lengths in the report. It scales with the text size. */
+  --doc-rem: calc(1rem * var(--doc-zoom, 1));
+  --background: var(--paper);
+  background: var(--paper);
+  color: var(--foreground);
+  max-width: var(--paper-width, 860px);
+  margin: 1.5rem auto;
+  border-radius: 6px;
+  box-shadow: 0 2px 18px rgb(0 0 0 / 0.45);
+}
+/* Images scale with the text size, as in a browser. */
+.markdown-body img { cursor: zoom-in; zoom: var(--doc-zoom, 1); }
+.paper-dark { --primary: oklch(0.72 0.17 303); }
+
+/* Print: only the report in #print-root (src/lib/print.ts) prints. */
+#print-root { display: none; }
+@media print {
+  @page { margin: 16mm 14mm; }
+  html, body, #root {
+    height: auto !important;
+    overflow: visible !important;
+    background: #ffffff !important;
+  }
+  body > *:not(#print-root) { display: none !important; }
+  #print-root {
+    display: block;
+    max-width: none;
+    margin: 0;
+    border-radius: 0;
+    box-shadow: none;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+  #print-root .markdown-body { padding: 0; }
+  #print-root .copy-code-btn,
+  #print-root .header-anchor { display: none; }
+  #print-root :is(img, pre, table, blockquote, .mermaid-block) { break-inside: avoid; }
+  #print-root :is(h1, h2, h3, h4, h5, h6) { break-after: avoid; }
 }

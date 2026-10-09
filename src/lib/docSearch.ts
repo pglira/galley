@@ -81,3 +81,16 @@ export function setActiveMatch(matches: HTMLElement[], index: number): HTMLEleme
   target.classList.add(ACTIVE_CLASS);
   return target;
 }
+
+// Returns the index of the first match in the block that the source line
+// `line` (0-based) renders to, or 0 if no block contains that line. Blocks
+// carry their source lines in `data-source-map="start,end"` (end exclusive).
+export function matchAtLine(matches: HTMLElement[], line: number): number {
+  const i = matches.findIndex((m) => {
+    const [start, end] = (m.closest("[data-source-map]")?.getAttribute("data-source-map") ?? "")
+      .split(",")
+      .map(Number);
+    return start <= line && line < end;
+  });
+  return Math.max(0, i);
+}

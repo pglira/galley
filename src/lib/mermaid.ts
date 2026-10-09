@@ -1,4 +1,3 @@
-let initialized = false;
 let mermaidPromise: Promise<typeof import("mermaid").default> | null = null;
 
 async function loadMermaid() {
@@ -12,12 +11,7 @@ export async function renderMermaidBlocks(root: HTMLElement, theme: "light" | "d
   const blocks = root.querySelectorAll<HTMLPreElement>("pre.mermaid-pending");
   if (blocks.length === 0) return;
   const mermaid = await loadMermaid();
-  if (!initialized) {
-    mermaid.initialize({ startOnLoad: false, theme: theme === "dark" ? "dark" : "default" });
-    initialized = true;
-  } else {
-    mermaid.initialize({ startOnLoad: false, theme: theme === "dark" ? "dark" : "default" });
-  }
+  mermaid.initialize({ startOnLoad: false, theme: theme === "dark" ? "dark" : "default" });
 
   let i = 0;
   for (const pre of Array.from(blocks)) {
@@ -34,6 +28,9 @@ export async function renderMermaidBlocks(root: HTMLElement, theme: "light" | "d
     // Preserve source map attribute through mermaid replacement.
     const sourceMap = pre.getAttribute("data-source-map");
     if (sourceMap) wrapper.setAttribute("data-source-map", sourceMap);
+    for (const cls of Array.from(pre.classList)) {
+      if (cls.startsWith("diff-")) wrapper.classList.add(cls);
+    }
     pre.replaceWith(wrapper);
   }
 }

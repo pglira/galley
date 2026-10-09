@@ -1,39 +1,40 @@
 # Changelog
 
-All notable changes to this project will be documented in this file.
-
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
 ### Added
-- Adjustable text size — scales all text app-wide (sidebar, toolbar, command palette, markdown content) via Settings dropdown or Cmd+Plus/Cmd+Minus/Cmd+0
-- Resizable sidebars — drag the edge of the folder sidebar or table of contents to resize; double-click to reset to default
-- Copy contents as markdown
-- Linux builds (.deb and AppImage) for amd64 and arm64
+- Galley directories: a tree of reports and their snapshots, newest report first.
+- Annotations on selected text and general comments, saved in `annotations.md` of each snapshot.
+- Diff of a snapshot against a reference snapshot, with word-level changes, added and removed blocks, and changed images.
+- **Copy prompt**: a prompt for the agent with relative paths only.
+- Deletion of all snapshots of a report except the last one.
+- `GALLEY.md`: the rules for the agent, created from the app.
+- Local images in reports, through the `galley` URI scheme. It serves only files of the open galley directory. Remote images do not load.
+- Image overlay with zoom and pan.
+- Start screen to open or create a galley directory, with recent directories.
+- Dark app with a selectable paper color for the report.
+- `scripts/install.sh`: installs the launcher, a desktop entry and an icon.
+- Page width setting.
+- Search in all reports and annotations, with jump to the match.
+- PDF export of the report as it shows, with the diff if it is on.
+- Text size applies to the report only, with browser shortcuts: `Ctrl +`, `Ctrl -`, `Ctrl 0`, `Ctrl` + mouse wheel, and the numpad keys.
 
 ### Fixed
-- CLI not opening files when Marky is already running
-- Files not refreshing when edited from outside of Marky
-- Contact link
+- The release build contains the Geist font.
+- Dropdown menus are opaque.
+- "Delete old snapshots" keeps the snapshot that the dialog shows, also when the agent writes a newer snapshot at that time.
+- A fast change of the selection cannot show or save the annotations of another snapshot.
+- Comments that start with `>` or contain a `## N` line survive a save and load.
+- A changed code block shows as a removed block and an added block in the diff.
+- Code and diagrams take the colors of a new paper tone at once.
+- Links in a report do not navigate the window. Web links open in the browser.
+- `<style>` elements in a report are removed.
+- `GALLEY.md` tells the agent to write `report.md` last in each snapshot.
 
-## [0.1.1] - 2026-04-16
+### Removed
+- Marky features that Galley does not use: folder workspaces, command palette, tabs, split panes, and the light and dark themes.
+- Unused UI components and packages.
 
-### Fixed
-- Folders not working correctly
-
-## [0.1.0] - 2026-04-16
-
-### Added
-- Tauri v2 desktop markdown viewer
-- Folder sidebar with file tree (Obsidian-style)
-- Cmd+K command palette with fuzzy search
-- Split panes and tabs
-- In-document search
-- Syntax highlighting via Shiki
-- KaTeX math rendering
-- Mermaid diagram support
-- Light/dark theme with shadcn UI
-- File watching with live reload
-- CLI launcher (`marky FILE` or `marky FOLDER`)
-- Homebrew tap distribution
+Galley is a fork of [Marky](https://github.com/GRVYDEV/marky) 0.1.3.

@@ -11,11 +11,12 @@ pub enum AppError {
     #[error("path is not utf-8")]
     NonUtf8Path,
 
-    #[error("not found: {0}")]
-    NotFound(String),
-
     #[error("invalid input: {0}")]
     Invalid(String),
+
+    #[cfg_attr(target_os = "linux", allow(dead_code))]
+    #[error("not supported on this platform")]
+    Unsupported,
 
     #[error(transparent)]
     Other(#[from] anyhow::Error),

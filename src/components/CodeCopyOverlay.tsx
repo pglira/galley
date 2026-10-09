@@ -1,5 +1,3 @@
-import * as React from "react";
-
 /**
  * Adds a "Copy" button to every <pre> in the rendered viewer.
  * Buttons are appended directly into the DOM (after sanitization)
@@ -23,8 +21,4 @@ export function attachCopyButtons(root: HTMLElement) {
     });
     pre.appendChild(btn);
   });
-}
-
-export default function _Unused() {
-  return null as unknown as React.ReactElement;
 }

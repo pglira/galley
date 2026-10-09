@@ -1,17 +1,20 @@
 import { useEffect, useRef, useState } from "react";
 import { ChevronDown, ChevronUp, X } from "lucide-react";
-import { highlightMatches, setActiveMatch } from "@/lib/docSearch";
+import { highlightMatches, matchAtLine, setActiveMatch } from "@/lib/docSearch";
 import { Button } from "@/components/ui/button";
 
 interface Props {
   open: boolean;
   onClose: () => void;
+  query: string;
+  onQueryChange: (q: string) => void;
+  // The source line (0-based) whose first match becomes active, or null for the first match.
+  targetLine: number | null;
   containerRef: React.RefObject<HTMLElement | null>;
   contentNonce: number;
 }
 
-export function DocSearch({ open, onClose, containerRef, contentNonce }: Props) {
-  const [query, setQuery] = useState("");
+export function DocSearch({ open, onClose, query, onQueryChange, targetLine, containerRef, contentNonce }: Props) {
   const [count, setCount] = useState(0);
   const [active, setActive] = useState(0);
   const handleRef = useRef<{ matches: HTMLElement[]; clear: () => void } | null>(null);
@@ -27,16 +30,18 @@ export function DocSearch({ open, onClose, containerRef, contentNonce }: Props) 
     handleRef.current = h;
     setCount(h.matches.length);
     if (h.matches.length > 0) {
-      const el = setActiveMatch(h.matches, 0);
+      const first = targetLine == null ? 0 : matchAtLine(h.matches, targetLine);
+      setActive(first);
+      const el = setActiveMatch(h.matches, first);
       el?.scrollIntoView({ block: "center", behavior: "smooth" });
     }
     return () => {
       h.clear();
     };
-  }, [query, open, contentNonce, containerRef]);
+  }, [query, open, targetLine, contentNonce, containerRef]);
 
   useEffect(() => {
-    if (open) inputRef.current?.focus();
+    if (open) inputRef.current?.select();
   }, [open]);
 
   const goTo = (delta: number) => {
@@ -55,7 +60,7 @@ export function DocSearch({ open, onClose, containerRef, contentNonce }: Props) 
       <input
         ref={inputRef}
         value={query}
-        onChange={(e) => setQuery(e.target.value)}
+        onChange={(e) => onQueryChange(e.target.value)}
         onKeyDown={(e) => {
           if (e.key === "Enter") {
             e.preventDefault();

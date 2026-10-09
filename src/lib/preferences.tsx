@@ -3,39 +3,45 @@ import { tauri } from "@/lib/tauri";
 
 export interface Preferences {
   copyAsMarkdown: boolean;
+  // Scale of the report text, 1 = 100 %.
   zoom: number;
+  // Maximum width of the paper in CSS pixels.
+  paperWidth: number;
   sidebarLeftWidth: number;
   sidebarRightWidth: number;
-  sidebarGroupByRepo: boolean;
 }
 
-const STORAGE_KEY = "marky:preferences";
+const STORAGE_KEY = "galley:preferences";
 
 const DEFAULTS: Preferences = {
   copyAsMarkdown: true,
   zoom: 1.0,
+  paperWidth: 860,
   sidebarLeftWidth: 256,
-  sidebarRightWidth: 224,
-  sidebarGroupByRepo: true,
+  sidebarRightWidth: 300,
 };
 
-const ZOOM_MIN = 0.7;
-const ZOOM_MAX = 1.6;
+export const ZOOM_MIN = 0.5;
+export const ZOOM_MAX = 3;
 const ZOOM_STEP = 0.1;
+
+export const PAPER_WIDTH_MIN = 480;
+export const PAPER_WIDTH_MAX = 2400;
+export const PAPER_WIDTH_DEFAULT = 860;
 
 export const SIDEBAR_LEFT_MIN = 180;
 export const SIDEBAR_LEFT_MAX = 400;
 export const SIDEBAR_LEFT_DEFAULT = 256;
-export const SIDEBAR_RIGHT_MIN = 160;
-export const SIDEBAR_RIGHT_MAX = 360;
-export const SIDEBAR_RIGHT_DEFAULT = 224;
+export const SIDEBAR_RIGHT_MIN = 220;
+export const SIDEBAR_RIGHT_MAX = 520;
+export const SIDEBAR_RIGHT_DEFAULT = 300;
 
 interface Ctx extends Preferences {
   setCopyAsMarkdown: (v: boolean) => void;
-  setSidebarGroupByRepo: (v: boolean) => void;
   zoomIn: () => void;
   zoomOut: () => void;
   zoomReset: () => void;
+  setPaperWidth: (width: number) => void;
   setSidebarWidth: (side: "left" | "right", width: number) => void;
   resetSidebarWidth: (side: "left" | "right") => void;
 }
@@ -63,10 +69,10 @@ function persistToBackend(prefs: Preferences) {
   backendTimer = setTimeout(() => {
     tauri.savePreferences({
       zoom: prefs.zoom,
+      paper_width: prefs.paperWidth,
       sidebar_left_width: prefs.sidebarLeftWidth,
       sidebar_right_width: prefs.sidebarRightWidth,
       copy_as_markdown: prefs.copyAsMarkdown,
-      sidebar_group_by_repo: prefs.sidebarGroupByRepo,
     }).catch(() => {});
   }, 300);
 }
@@ -83,22 +89,16 @@ export function PreferencesProvider({ children }: { children: React.ReactNode })
     tauri.loadPreferences().then((backend) => {
       setPrefs((prev) => {
         const next = { ...prev };
-        if (backend.zoom != null) next.zoom = backend.zoom;
+        if (backend.zoom != null) next.zoom = clampZoom(backend.zoom);
+        if (backend.paper_width != null) next.paperWidth = backend.paper_width;
         if (backend.sidebar_left_width != null) next.sidebarLeftWidth = backend.sidebar_left_width;
         if (backend.sidebar_right_width != null) next.sidebarRightWidth = backend.sidebar_right_width;
         if (backend.copy_as_markdown != null) next.copyAsMarkdown = backend.copy_as_markdown;
-        if (backend.sidebar_group_by_repo != null) next.sidebarGroupByRepo = backend.sidebar_group_by_repo;
         persist(next);
         return next;
       });
     }).catch(() => {});
   }, []);
-
-  // Apply zoom to root font-size so all rem-based text scales app-wide.
-  React.useEffect(() => {
-    document.documentElement.style.fontSize = `${16 * prefs.zoom}px`;
-    return () => { document.documentElement.style.fontSize = ""; };
-  }, [prefs.zoom]);
 
   const update = React.useCallback((fn: (prev: Preferences) => Preferences) => {
     setPrefs((prev) => {
@@ -114,11 +114,6 @@ export function PreferencesProvider({ children }: { children: React.ReactNode })
     [update],
   );
 
-  const setSidebarGroupByRepo = React.useCallback(
-    (v: boolean) => update((p) => ({ ...p, sidebarGroupByRepo: v })),
-    [update],
-  );
-
   const zoomIn = React.useCallback(
     () => update((p) => ({ ...p, zoom: clampZoom(p.zoom + ZOOM_STEP) })),
     [update],
@@ -131,6 +126,15 @@ export function PreferencesProvider({ children }: { children: React.ReactNode })
 
   const zoomReset = React.useCallback(
     () => update((p) => ({ ...p, zoom: 1.0 })),
+    [update],
+  );
+
+  const setPaperWidth = React.useCallback(
+    (width: number) =>
+      update((p) => ({
+        ...p,
+        paperWidth: Math.round(Math.min(PAPER_WIDTH_MAX, Math.max(PAPER_WIDTH_MIN, width))),
+      })),
     [update],
   );
 
@@ -158,14 +162,14 @@ export function PreferencesProvider({ children }: { children: React.ReactNode })
     () => ({
       ...prefs,
       setCopyAsMarkdown,
-      setSidebarGroupByRepo,
       zoomIn,
       zoomOut,
       zoomReset,
+      setPaperWidth,
       setSidebarWidth,
       resetSidebarWidth,
     }),
-    [prefs, setCopyAsMarkdown, setSidebarGroupByRepo, zoomIn, zoomOut, zoomReset, setSidebarWidth, resetSidebarWidth],
+    [prefs, setCopyAsMarkdown, zoomIn, zoomOut, zoomReset, setPaperWidth, setSidebarWidth, resetSidebarWidth],
   );
 
   return (
