@@ -53,7 +53,8 @@ export const tauri = {
   readAnnotations: (snapshot: string) => invoke<string>("read_annotations", { snapshot }),
   writeAnnotations: (snapshot: string, text: string) =>
     invoke<void>("write_annotations", { snapshot, text }),
-  deleteOldSnapshots: (report: string, keep: string) => invoke<number>("delete_old_snapshots", { report, keep }),
+  deleteReport: (report: string) => invoke<void>("delete_report", { report }),
+  deleteSnapshots: (report: string, names: string[]) => invoke<void>("delete_snapshots", { report, names }),
   search: (query: string) => invoke<SearchResult>("search", { query }),
   hashFiles: (paths: string[]) => invoke<(string | null)[]>("hash_files", { paths }),
   exportPdf: (path: string) => invoke<void>("export_pdf", { path }),
@@ -65,9 +66,12 @@ export function onOpenDir(cb: (path: string) => void): Promise<UnlistenFn> {
   return listen<string>("galley://open", (e) => cb(e.payload));
 }
 
-// The URL of a file in the open galley directory, served by the `galley` URI scheme.
-export function assetUrl(absolutePath: string): string {
-  return convertFileSrc(absolutePath, "galley");
+// The URL of a file in the open galley directory, served by the `galley` URI
+// scheme. A nonzero `version` adds a query, so that the webview loads the file
+// again instead of its cached copy.
+export function assetUrl(absolutePath: string, version = 0): string {
+  const url = convertFileSrc(absolutePath, "galley");
+  return version ? `${url}?v=${version}` : url;
 }
 
 // Opens a web or mail link in the default application of the system.

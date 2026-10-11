@@ -10,7 +10,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuCheckboxItem,
 } from "@/components/ui/dropdown-menu";
-import { Search, Settings, Minus, Plus, ClipboardCopy, Check, FileDown } from "lucide-react";
+import { Search, Settings, Minus, Plus, ClipboardCopy, Check, FileDown, RotateCw } from "lucide-react";
 import { useTheme, PAPER_PRESETS } from "@/lib/theme";
 import {
   usePreferences,
@@ -32,6 +32,8 @@ interface Props {
   canCopyPrompt: boolean;
   onCopyPrompt: () => Promise<void>;
   onFind: () => void;
+  // Null if no snapshot is selected.
+  onReload: (() => void) | null;
   // Null if no report shows.
   onExportPdf: (() => void) | null;
 }
@@ -46,6 +48,7 @@ export function Toolbar({
   canCopyPrompt,
   onCopyPrompt,
   onFind,
+  onReload,
   onExportPdf,
 }: Props) {
   const { paper, setPaper } = useTheme();
@@ -104,6 +107,21 @@ export function Toolbar({
           {copied ? <Check /> : <ClipboardCopy />}
           {copied ? "Copied" : "Copy prompt"}
         </Button>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button
+              onClick={() => onReload?.()}
+              disabled={!onReload}
+              variant="ghost"
+              size="icon"
+              className="ml-2 h-7 w-7"
+              aria-label="Reload snapshot"
+            >
+              <RotateCw className="h-3.5 w-3.5" />
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent>Reload snapshot (F5)</TooltipContent>
+        </Tooltip>
         <Tooltip>
           <TooltipTrigger asChild>
             <Button

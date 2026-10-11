@@ -14,6 +14,8 @@ import type { Annotation } from "@/lib/annotations";
 export interface Document {
   source: string;
   filePath: string;
+  // The load generation of the document. Its images load with this version.
+  version: number;
 }
 
 export interface TextSelection {
@@ -47,8 +49,8 @@ const ANNOTATION_SELECTOR = "mark.galley-annotation";
 
 const scrollMemory = new Map<string, number>();
 
-function imageResolver(filePath: string) {
-  return (src: string) => (isRelativePath(src) ? assetUrl(resolveRelative(filePath, src)) : src);
+function imageResolver(doc: Document) {
+  return (src: string) => (isRelativePath(src) ? assetUrl(resolveRelative(doc.filePath, src), doc.version) : src);
 }
 
 export function Viewer({
@@ -78,9 +80,9 @@ export function Viewer({
   }, [onRendered, onSelection, onAnnotationClick, onImageClick]);
 
   const html = React.useMemo(() => {
-    const current = renderMarkdown(doc.source, imageResolver(doc.filePath));
+    const current = renderMarkdown(doc.source, imageResolver(doc));
     if (!compare) return current;
-    const old = renderMarkdown(compare.source, imageResolver(compare.filePath));
+    const old = renderMarkdown(compare.source, imageResolver(compare));
     const imageKey = (img: Element) =>
       `${img.getAttribute("data-src") ?? ""}#${imageHashes[img.getAttribute("src") ?? ""] ?? ""}`;
     return diffHtml(current, old, imageKey);

@@ -57,6 +57,8 @@ function AppShell() {
   const [allQuery, setAllQuery] = useState("");
   const allInputRef = useRef<HTMLInputElement>(null);
   const [contentNonce, setContentNonce] = useState(0);
+  // Increments on each manual reload; the snapshot files load again.
+  const [reloadNonce, setReloadNonce] = useState(0);
   const [recent, setRecent] = useState<string[]>([]);
   const [image, setImage] = useState<{ src: string; alt: string } | null>(null);
   const articleRef = useRef<HTMLElement>(null);
@@ -159,12 +161,12 @@ function AppShell() {
     const filePath = joinPath(snapshot.path, "report.md");
     tauri
       .readFile(filePath)
-      .then((source) => !cancelled && setDoc({ source, filePath }))
+      .then((source) => !cancelled && setDoc({ source, filePath, version: reloadNonce }))
       .catch((e) => !cancelled && setError(String(e)));
     return () => {
       cancelled = true;
     };
-  }, [snapshot?.path, snapshot?.report_modified]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [snapshot?.path, snapshot?.report_modified, reloadNonce]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // The annotations of the previous snapshot never apply to a new selection.
   useEffect(() => {
@@ -185,7 +187,7 @@ function AppShell() {
     return () => {
       cancelled = true;
     };
-  }, [snapshot?.path, snapshot?.annotations_modified]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [snapshot?.path, snapshot?.annotations_modified, reloadNonce]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // A new snapshot starts with no draft, and diffs against its predecessor.
   useEffect(() => {
@@ -209,27 +211,27 @@ function AppShell() {
     const filePath = joinPath(refSnapshot.path, "report.md");
     tauri
       .readFile(filePath)
-      .then((source) => !cancelled && setCompareDoc({ source, filePath }))
+      .then((source) => !cancelled && setCompareDoc({ source, filePath, version: reloadNonce }))
       .catch((e) => !cancelled && setError(String(e)));
     return () => {
       cancelled = true;
     };
-  }, [diffOn, refSnapshot?.path, refSnapshot?.report_modified]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [diffOn, refSnapshot?.path, refSnapshot?.report_modified, reloadNonce]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Hash the images of both documents, so the diff detects changed images.
   useEffect(() => {
     if (!doc || !compareDoc) return;
-    const paths = [...imagePaths(doc), ...imagePaths(compareDoc)];
-    if (paths.length === 0) return;
+    const urls = [doc, compareDoc].flatMap((d) => imagePaths(d).map((p) => ({ p, url: assetUrl(p, d.version) })));
+    if (urls.length === 0) return;
     let cancelled = false;
     tauri
-      .hashFiles(paths)
+      .hashFiles(urls.map((u) => u.p))
       .then((hashes) => {
         if (cancelled) return;
         const map: Record<string, string> = {};
-        paths.forEach((p, i) => {
+        urls.forEach((u, i) => {
           const h = hashes[i];
-          if (h) map[assetUrl(p)] = h;
+          if (h) map[u.url] = h;
         });
         setImageHashes(map);
       })
@@ -272,11 +274,18 @@ function AppShell() {
       ?.scrollIntoView({ block: "center", behavior: "smooth" });
   };
 
-  const onDeleteOld = async (r: Report) => {
+  const onDeleteReport = async (r: Report) => {
     try {
-      const keep = r.snapshots[r.snapshots.length - 1];
-      if (!keep) return;
-      await tauri.deleteOldSnapshots(r.path, keep.name);
+      await tauri.deleteReport(r.path);
+      applyGalley(await tauri.scanDir());
+    } catch (e) {
+      setError(String(e));
+    }
+  };
+
+  const onDeleteSnapshots = async (r: Report, names: string[]) => {
+    try {
+      await tauri.deleteSnapshots(r.path, names);
       applyGalley(await tauri.scanDir());
     } catch (e) {
       setError(String(e));
@@ -293,6 +302,14 @@ function AppShell() {
       setSearchOpen(true);
     }
   };
+
+  // Loads the directory, the selected snapshot, its annotations, its images
+  // and the reference of the diff again.
+  const reload = useCallback(() => {
+    if (!galley) return;
+    setReloadNonce((n) => n + 1);
+    tauri.scanDir().then(applyGalley).catch((e) => setError(String(e)));
+  }, [galley != null, applyGalley]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const onInitRules = async () => {
     try {
@@ -322,7 +339,10 @@ function AppShell() {
     const onKey = (e: KeyboardEvent) => {
       const meta = e.metaKey || e.ctrlKey;
       const k = e.key.toLowerCase();
-      if (meta && e.shiftKey && k === "f") {
+      if (e.key === "F5") {
+        e.preventDefault();
+        reload();
+      } else if (meta && e.shiftKey && k === "f") {
         e.preventDefault();
         allInputRef.current?.focus();
         allInputRef.current?.select();
@@ -359,7 +379,7 @@ function AppShell() {
       window.removeEventListener("keydown", onKey);
       window.removeEventListener("wheel", onWheel);
     };
-  }, [pickDir, zoomIn, zoomOut, zoomReset]);
+  }, [pickDir, reload, zoomIn, zoomOut, zoomReset]);
 
   const compare = diffOn && compareDoc ? compareDoc : null;
   const title = report && snapshot
@@ -400,7 +420,8 @@ function AppShell() {
           onSelect={setSelection}
           onOpenDir={pickDir}
           onInitRules={onInitRules}
-          onDeleteOld={onDeleteOld}
+          onDeleteReport={onDeleteReport}
+          onDeleteSnapshots={onDeleteSnapshots}
           search={<SearchBox query={allQuery} onQueryChange={setAllQuery} inputRef={allInputRef} />}
           results={
             allQuery.trim() ? <SearchResults query={allQuery} galley={galley} onOpenHit={onOpenHit} /> : null
@@ -427,6 +448,7 @@ function AppShell() {
             }
           }}
           onFind={() => setSearchOpen(true)}
+          onReload={snapshot ? reload : null}
           onExportPdf={exportPdf}
         />
         {error && (

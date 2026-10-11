@@ -255,36 +255,31 @@ pub fn write_annotations(root: &Path, snapshot: &Path, text: &str) -> AppResult<
     Ok(())
 }
 
-/// Deletes all snapshots of a report that are older than `keep`. `keep` must
-/// be the newest snapshot with a `report.md`; otherwise nothing is deleted.
-/// Snapshot directories newer than `keep` (a snapshot that the agent writes
-/// at the moment) stay. Returns the number of deleted snapshots.
-pub fn delete_old_snapshots(root: &Path, report: &Path, keep: &str) -> AppResult<usize> {
+/// Deletes a report directory with all its snapshots.
+pub fn delete_report(root: &Path, report: &Path) -> AppResult<()> {
+    std::fs::remove_dir_all(report_dir(root, report)?)?;
+    Ok(())
+}
+
+/// Deletes the snapshots `names` of a report. All names are checked before
+/// the first deletion, so that an invalid name deletes nothing. Other
+/// snapshot directories (also one that the agent writes at the moment) stay.
+pub fn delete_snapshots(root: &Path, report: &Path, names: &[String]) -> AppResult<()> {
     let dir = report_dir(root, report)?;
-    let snaps: Vec<(u64, PathBuf)> = subdirs(&dir)?
-        .into_iter()
-        .filter(|(name, _)| is_snapshot_name(name))
-        .filter_map(|(name, path)| Some((name.parse::<u64>().ok()?, path)))
-        .collect();
-    let newest = snaps
+    let paths = names
         .iter()
-        .filter(|(_, p)| p.join(REPORT_FILE).is_file())
-        .max_by_key(|(n, _)| *n);
-    let keep_n = keep.parse::<u64>().ok();
-    let Some((newest_n, _)) = newest.filter(|(n, _)| is_snapshot_name(keep) && Some(*n) == keep_n) else {
-        return Err(AppError::Invalid(format!(
-            "snapshot {keep} is not the newest snapshot of {}",
-            dir.display()
-        )));
-    };
-    let mut deleted = 0;
-    for (n, path) in &snaps {
-        if n < newest_n {
-            std::fs::remove_dir_all(path)?;
-            deleted += 1;
-        }
+        .map(|name| {
+            let p = dir.join(name);
+            if !is_snapshot_name(name) || !p.is_dir() {
+                return Err(AppError::Invalid(format!("{name} is not a snapshot of {}", dir.display())));
+            }
+            Ok(p)
+        })
+        .collect::<AppResult<Vec<_>>>()?;
+    for p in paths {
+        std::fs::remove_dir_all(p)?;
     }
-    Ok(deleted)
+    Ok(())
 }
 
 /// Returns a content hash for each file inside `root`, or `None` for files
@@ -364,48 +359,47 @@ mod tests {
     }
 
     #[test]
-    fn delete_old_snapshots_keeps_last() {
+    fn delete_snapshots_deletes_only_the_names() {
         let dir = tempdir().unwrap();
         snapshot(dir.path(), "r", "01");
         snapshot(dir.path(), "r", "02");
-        snapshot(dir.path(), "r", "10");
-        fs::create_dir_all(dir.path().join("r/notes")).unwrap();
-        let n = delete_old_snapshots(dir.path(), &dir.path().join("r"), "10").unwrap();
-        assert_eq!(n, 2);
-        assert!(dir.path().join("r/10").exists());
+        snapshot(dir.path(), "r", "03");
+        fs::create_dir_all(dir.path().join("r/04")).unwrap();
+        let names = ["01".to_string(), "03".to_string()];
+        delete_snapshots(dir.path(), &dir.path().join("r"), &names).unwrap();
         assert!(!dir.path().join("r/01").exists());
-        assert!(dir.path().join("r/notes").exists());
-    }
-
-    #[test]
-    fn delete_old_snapshots_keeps_incomplete_newer_snapshot() {
-        let dir = tempdir().unwrap();
-        snapshot(dir.path(), "r", "01");
-        snapshot(dir.path(), "r", "02");
-        fs::create_dir_all(dir.path().join("r/03")).unwrap();
-        let n = delete_old_snapshots(dir.path(), &dir.path().join("r"), "02").unwrap();
-        assert_eq!(n, 1);
         assert!(dir.path().join("r/02/report.md").exists());
-        assert!(dir.path().join("r/03").exists());
+        assert!(!dir.path().join("r/03").exists());
+        assert!(dir.path().join("r/04").exists());
     }
 
     #[test]
-    fn delete_old_snapshots_refuses_wrong_keep() {
+    fn delete_snapshots_refuses_invalid_names() {
         let dir = tempdir().unwrap();
         snapshot(dir.path(), "r", "01");
-        snapshot(dir.path(), "r", "02");
+        fs::create_dir_all(dir.path().join("r/images")).unwrap();
         let r = dir.path().join("r");
-        assert!(delete_old_snapshots(dir.path(), &r, "01").is_err());
-        assert!(delete_old_snapshots(dir.path(), &r, "").is_err());
+        for bad in ["", "..", "images", "09", "../r"] {
+            let names = ["01".to_string(), bad.to_string()];
+            assert!(delete_snapshots(dir.path(), &r, &names).is_err(), "{bad}");
+        }
         assert!(dir.path().join("r/01").exists());
+        assert!(dir.path().join("r/images").exists());
     }
 
     #[test]
-    fn delete_old_snapshots_rejects_non_reports() {
+    fn delete_report_deletes_only_reports() {
         let dir = tempdir().unwrap();
         let s = snapshot(dir.path(), "r", "01");
-        assert!(delete_old_snapshots(dir.path(), &s, "01").is_err());
-        assert!(delete_old_snapshots(dir.path(), dir.path(), "01").is_err());
+        assert!(delete_report(dir.path(), &s).is_err());
+        assert!(delete_report(dir.path(), dir.path()).is_err());
+        let other = tempdir().unwrap();
+        snapshot(other.path(), "x", "01");
+        assert!(delete_report(dir.path(), &other.path().join("x")).is_err());
+        assert!(other.path().join("x/01").exists());
+        delete_report(dir.path(), &dir.path().join("r")).unwrap();
+        assert!(!dir.path().join("r").exists());
+        assert!(dir.path().exists());
     }
 
     #[test]

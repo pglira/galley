@@ -15,7 +15,7 @@ Galley is a fork of Marky. Keep the scope small: no editor, no agent integration
 <root>/<YYYY-MM-DD_HHMM_name>/<NN>/annotations.md  Galley
 ```
 
-- Galley writes only `annotations.md` and `GALLEY.md`, and deletes old snapshots on request. It never writes `report.md` or images.
+- Galley writes only `annotations.md` and `GALLEY.md`, and deletes reports and snapshots on request. It never writes `report.md` or images.
 - Prompts for the agent use only paths relative to the galley root. The agent can see the directory under another absolute path (container, SSH host).
 - The format of `annotations.md` is documented in `src-tauri/src/GALLEY.md` and implemented in `src/lib/annotations.ts`. Change both together.
 

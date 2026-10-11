@@ -44,7 +44,7 @@ galley/
 - **Diff:** a checkbox to enable the diff, and a dropdown to select the reference snapshot.
 - **Copy prompt:** copies a prompt with relative paths only, for example:
   `Read 2026-10-09_1430_cache-design/02/annotations.md in the galley directory and write snapshot 03.`
-- **Delete old snapshots:** keeps only the last snapshot of a report.
+- **Delete:** a report, one snapshot, or all other snapshots of a report.
 
 ## Steps
 
@@ -52,4 +52,4 @@ galley/
 2. Tree view and snapshot view.
 3. Annotations and **Copy prompt**.
 4. Diff.
-5. Delete old snapshots.
+5. Delete reports and snapshots.

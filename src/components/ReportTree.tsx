@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { ChevronDown, ChevronRight, FolderOpen, MessageSquare, Trash2 } from "lucide-react";
+import { ChevronDown, ChevronRight, Ellipsis, FolderOpen, MessageSquare, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -9,6 +9,12 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
 import type { Galley, Report } from "@/lib/tauri";
 
@@ -23,7 +29,8 @@ interface Props {
   onSelect: (s: Selection) => void;
   onOpenDir: () => void;
   onInitRules: () => void;
-  onDeleteOld: (report: Report) => void;
+  onDeleteReport: (report: Report) => void;
+  onDeleteSnapshots: (report: Report, names: string[]) => void;
   // The search input, below the header.
   search?: React.ReactNode;
   // Search results, which replace the tree when set.
@@ -37,18 +44,44 @@ export function reportLabel(name: string): { title: string; date: string } {
   return { title: m[4].replace(/[-_]/g, " "), date: `${m[1]} ${m[2]}:${m[3]}` };
 }
 
+interface Confirm {
+  title: string;
+  text: string;
+  run: () => void;
+}
+
 export function ReportTree({
   galley,
   selection,
   onSelect,
   onOpenDir,
   onInitRules,
-  onDeleteOld,
+  onDeleteReport,
+  onDeleteSnapshots,
   search,
   results,
 }: Props) {
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
-  const [confirm, setConfirm] = useState<Report | null>(null);
+  const [confirm, setConfirm] = useState<Confirm | null>(null);
+
+  const askDeleteReport = (report: Report) =>
+    setConfirm({
+      title: "Delete report?",
+      text: `This deletes the directory "${report.name}" with its ${report.snapshots.length} snapshot(s), their images and annotations. You cannot undo this.`,
+      run: () => onDeleteReport(report),
+    });
+
+  // Deletes the snapshots `names` of `report`. A report without snapshots
+  // after the deletion is deleted completely.
+  const askDeleteSnapshots = (report: Report, names: string[], title: string) => {
+    if (names.length === report.snapshots.length) return askDeleteReport(report);
+    const list = names.join(", ");
+    setConfirm({
+      title,
+      text: `This deletes snapshot(s) ${list} of "${report.name}", including their images and annotations. You cannot undo this.`,
+      run: () => onDeleteSnapshots(report, names),
+    });
+  };
 
   const dirName = galley?.path.split(/[\\/]/).pop() ?? "";
 
@@ -105,20 +138,18 @@ export function ReportTree({
                   <div className="truncate text-sm">{label.title}</div>
                   {label.date && <div className="text-[11px] text-muted-foreground">{label.date}</div>}
                 </div>
-                {report.snapshots.length > 1 && (
-                  <Button
-                    variant="ghost"
-                    size="icon-xs"
-                    className="opacity-0 group-hover:opacity-100"
-                    title="Delete old snapshots"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setConfirm(report);
-                    }}
-                  >
-                    <Trash2 />
-                  </Button>
-                )}
+                <Button
+                  variant="ghost"
+                  size="icon-xs"
+                  className="opacity-0 group-hover:opacity-100"
+                  title="Delete report"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    askDeleteReport(report);
+                  }}
+                >
+                  <Trash2 />
+                </Button>
               </div>
               {isOpen &&
                 [...report.snapshots].reverse().map((snap) => {
@@ -127,7 +158,7 @@ export function ReportTree({
                     <div
                       key={snap.name}
                       className={cn(
-                        "flex cursor-pointer items-center gap-2 py-0.5 pr-2 pl-8 text-sm hover:bg-sidebar-accent",
+                        "group flex cursor-pointer items-center gap-2 py-0.5 pr-2 pl-8 text-sm hover:bg-sidebar-accent",
                         active && "bg-sidebar-accent font-medium text-sidebar-accent-foreground"
                       )}
                       onClick={() => onSelect({ report: report.name, snapshot: snap.name })}
@@ -136,6 +167,42 @@ export function ReportTree({
                       {snap.annotations_modified != null && (
                         <MessageSquare className="size-3 text-primary" aria-label="Has annotations" />
                       )}
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button
+                            variant="ghost"
+                            size="icon-xs"
+                            className="opacity-0 group-hover:opacity-100 data-[state=open]:opacity-100"
+                            aria-label="Snapshot actions"
+                            onClick={(e) => e.stopPropagation()}
+                          >
+                            <Ellipsis />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end" className="w-auto whitespace-nowrap" onClick={(e) => e.stopPropagation()}>
+                          <DropdownMenuItem
+                            variant="destructive"
+                            onSelect={() => askDeleteSnapshots(report, [snap.name], "Delete snapshot?")}
+                          >
+                            <Trash2 />
+                            Delete snapshot {snap.name}
+                          </DropdownMenuItem>
+                          <DropdownMenuItem
+                            variant="destructive"
+                            disabled={report.snapshots.length < 2}
+                            onSelect={() =>
+                              askDeleteSnapshots(
+                                report,
+                                report.snapshots.map((s) => s.name).filter((n) => n !== snap.name),
+                                "Delete all other snapshots?"
+                              )
+                            }
+                          >
+                            <Trash2 />
+                            Delete all other snapshots
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
                     </div>
                   );
                 })}
@@ -147,11 +214,8 @@ export function ReportTree({
       <Dialog open={confirm != null} onOpenChange={(o) => !o && setConfirm(null)}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Delete old snapshots?</DialogTitle>
-            <DialogDescription>
-              {confirm &&
-                `This deletes ${confirm.snapshots.length - 1} snapshot(s) of "${confirm.name}", including their images and annotations. Only snapshot ${confirm.snapshots[confirm.snapshots.length - 1].name} stays. You cannot undo this.`}
-            </DialogDescription>
+            <DialogTitle>{confirm?.title}</DialogTitle>
+            <DialogDescription>{confirm?.text}</DialogDescription>
           </DialogHeader>
           <DialogFooter>
             <Button variant="outline" onClick={() => setConfirm(null)}>
@@ -160,7 +224,7 @@ export function ReportTree({
             <Button
               variant="destructive"
               onClick={() => {
-                if (confirm) onDeleteOld(confirm);
+                confirm?.run();
                 setConfirm(null);
               }}
             >

@@ -86,8 +86,13 @@ pub fn write_annotations(snapshot: String, text: String, open: State<'_, OpenDir
 }
 
 #[tauri::command]
-pub fn delete_old_snapshots(report: String, keep: String, open: State<'_, OpenDir>) -> AppResult<usize> {
-    galley::delete_old_snapshots(&open.get()?, Path::new(&report), &keep)
+pub fn delete_report(report: String, open: State<'_, OpenDir>) -> AppResult<()> {
+    galley::delete_report(&open.get()?, Path::new(&report))
+}
+
+#[tauri::command]
+pub fn delete_snapshots(report: String, names: Vec<String>, open: State<'_, OpenDir>) -> AppResult<()> {
+    galley::delete_snapshots(&open.get()?, Path::new(&report), &names)
 }
 
 /// The most hits that one search returns.

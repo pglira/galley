@@ -9,10 +9,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - Annotations on selected text and general comments, saved in `annotations.md` of each snapshot.
 - Diff of a snapshot against a reference snapshot, with word-level changes, added and removed blocks, and changed images.
 - **Copy prompt**: a prompt for the agent with relative paths only.
-- Deletion of all snapshots of a report except the last one.
+- Deletion of a report, of one snapshot, and of all other snapshots of a report.
 - `GALLEY.md`: the rules for the agent, created from the app.
 - Local images in reports, through the `galley` URI scheme. It serves only files of the open galley directory. Remote images do not load.
 - Image overlay with zoom and pan.
+- Reload of the selected snapshot with its annotations and images: a toolbar button and `F5`.
 - Start screen to open or create a galley directory, with recent directories.
 - Dark app with a selectable paper color for the report.
 - `scripts/install.sh`: installs the launcher, a desktop entry and an icon.
@@ -24,7 +25,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ### Fixed
 - The release build contains the Geist font.
 - Dropdown menus are opaque.
-- "Delete old snapshots" keeps the snapshot that the dialog shows, also when the agent writes a newer snapshot at that time.
+- A deletion of snapshots deletes only the snapshots that the dialog names, also when the agent writes a new snapshot at that time.
 - A fast change of the selection cannot show or save the annotations of another snapshot.
 - Comments that start with `>` or contain a `## N` line survive a save and load.
 - A changed code block shows as a removed block and an added block in the diff.
