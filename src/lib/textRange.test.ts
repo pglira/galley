@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { buildIndex, findQuote, insertAt, unwrapAll, wrapRange } from "./textRange";
+import { buildIndex, countQuote, findQuote, insertAt, quoteContext, unwrapAll, wrapRange } from "./textRange";
 
 function root(html: string): HTMLElement {
   const el = document.createElement("div");
@@ -17,6 +17,25 @@ describe("textRange", () => {
     expect(range).not.toBeNull();
     wrapRange(index, range![0], range![1], mark);
     expect(el.innerHTML).toBe("<p>the <em><mark>fast</mark></em>\n <mark>cache</mark></p><p><mark>next</mark></p>");
+  });
+
+  it("finds the match of a quote inside its context", () => {
+    const el = root("<table><tr><td>4</td><td>Images</td></tr></table><ol><li><strong>Images:</strong> now or later?</li></ol>");
+    const index = buildIndex(el, { dropWhitespace: true });
+    expect(countQuote(index, "Images")).toBe(2);
+    expect(findQuote(index, "Images")).toEqual([1, 7]);
+    expect(findQuote(index, "Images", "…Images: now or later?")).toEqual([7, 13]);
+    expect(findQuote(index, "Images", "not in the report")).toEqual([1, 7]);
+  });
+
+  it("returns the block text around a selection", () => {
+    const el = root("<p>head <em>Images</em> tail</p><p>next</p>");
+    document.body.appendChild(el);
+    const range = document.createRange();
+    range.selectNodeContents(el.querySelector("em")!);
+    expect(quoteContext(range, "del")).toBe("head Images tail");
+    expect(quoteContext(range, "del", 3)).toBe("…Images…");
+    el.remove();
   });
 
   it("unwraps marks", () => {

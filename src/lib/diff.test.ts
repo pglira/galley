@@ -7,17 +7,36 @@ describe("diffHtml", () => {
     expect(diffHtml(html, html)).toBe(html);
   });
 
-  it("marks inserted and deleted words", () => {
-    const out = diffHtml("<p>the fast cache</p>", "<p>the slow cache</p>");
-    expect(out).toContain('<del class="diff-del">slow</del>');
-    expect(out).toContain('<ins class="diff-ins">fast</ins>');
-    expect(out.indexOf("diff-del")).toBeLessThan(out.indexOf("diff-ins"));
+  it("shows a changed text as the old and the new block", () => {
+    const out = diffHtml("<p>the fast cache of the store</p>", "<p>the slow cache of the store</p>");
+    expect(out).toBe(
+      '<p class="diff-removed diff-pair">the <del class="diff-del">slow</del> cache of the store</p>' +
+        '<p class="diff-added diff-pair">the <ins class="diff-ins">fast</ins> cache of the store</p>'
+    );
   });
 
   it("keeps inline formatting in a word diff", () => {
-    const out = diffHtml("<p>a <strong>b</strong> c d</p>", "<p>a <strong>b</strong> c</p>");
-    expect(out).toContain("<strong>b</strong>");
-    expect(out).toMatch(/<ins class="diff-ins">\s?d<\/ins>/);
+    const out = diffHtml("<p>a <strong>b</strong> c d e f</p>", "<p>a <strong>b</strong> c e f</p>");
+    expect(out).toMatch(/<p class="diff-added diff-pair">a <strong>b<\/strong> c <ins class="diff-ins">d\s?<\/ins>\s?e f<\/p>/);
+  });
+
+  it("joins changes that short equal text separates", () => {
+    const out = diffHtml(
+      "<p>keep this start. Both are optional now. keep this end</p>",
+      "<p>keep this start. They replace the old one. keep this end</p>"
+    );
+    expect(out).toContain('<del class="diff-del">They replace the old one</del>');
+    expect(out).toContain('<ins class="diff-ins">Both are optional now</ins>');
+  });
+
+  it("marks no words in a text that keeps less than half of its text", () => {
+    const out = diffHtml("<p>one two three four</p>", "<p>one five six seven</p>");
+    expect(out).toBe('<p class="diff-removed">one five six seven</p><p class="diff-added">one two three four</p>');
+  });
+
+  it("diffs table cells inline", () => {
+    const out = diffHtml("<table><tr><td>a b c new</td></tr></table>", "<table><tr><td>a b c old</td></tr></table>");
+    expect(out).toContain('<td>a b c <del class="diff-del">old</del><ins class="diff-ins">new</ins></td>');
   });
 
   it("marks added and removed blocks", () => {
@@ -33,9 +52,9 @@ describe("diffHtml", () => {
   });
 
   it("compares list items one by one", () => {
-    const out = diffHtml("<ul><li>a</li><li>B</li></ul>", "<ul><li>a</li><li>b</li></ul>");
+    const out = diffHtml("<ul><li>a</li><li>b c d B</li></ul>", "<ul><li>a</li><li>b c d b</li></ul>");
     expect(out).toContain("<li>a</li>");
-    expect(out).toContain('<ins class="diff-ins">B</ins>');
+    expect(out).toContain('<li class="diff-added diff-pair">b c d <ins class="diff-ins">B</ins></li>');
   });
 
   it("marks changed images by key", () => {

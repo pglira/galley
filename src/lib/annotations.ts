@@ -6,20 +6,27 @@
 //
 //   > quoted text
 //
+//   Context: the sentence with the quoted text
+//
 //   The comment.
 //
-// An annotation without a quote refers to the full report. A comment line
-// that starts with ">" or looks like a "## N" heading gets a Markdown escape
-// ("\\"), so that it reads back as comment text.
+// An annotation without a quote refers to the full report. The context line
+// is optional: it locates a quote that occurs more than once in the report.
+// A comment line that starts with ">" or "Context:", or looks like a "## N"
+// heading, gets a Markdown escape ("\\"), so that it reads back as comment
+// text.
 
 export interface Annotation {
   quote: string;
+  // The text around the quote, if the quote is not unique in the report.
+  context?: string;
   comment: string;
 }
 
 const HEADING = /^##\s+\d+\s*$/;
 // A comment line that needs one more backslash, with any backslashes it has.
-const ESCAPED = /^\\*(>|##\s+\d+\s*$)/;
+const ESCAPED = /^\\*(>|Context:|##\s+\d+\s*$)/;
+const CONTEXT = /^Context:\s*/;
 
 function escapeLine(line: string): string {
   return ESCAPED.test(line) ? `\\${line}` : line;
@@ -41,7 +48,18 @@ export function parseAnnotations(text: string): Annotation[] {
       quote.push(lines[i].replace(/^> ?/, ""));
       i++;
     }
-    out.push({ quote: quote.join("\n").trim(), comment: lines.slice(i).map(unescapeLine).join("\n").trim() });
+    let context: string | undefined;
+    if (quote.length > 0) {
+      let j = i;
+      while (j < lines.length && !lines[j].trim()) j++;
+      if (j < lines.length && CONTEXT.test(lines[j])) {
+        context = lines[j].replace(CONTEXT, "").trim();
+        i = j + 1;
+      }
+    }
+    const a: Annotation = { quote: quote.join("\n").trim(), comment: lines.slice(i).map(unescapeLine).join("\n").trim() };
+    if (context) a.context = context;
+    out.push(a);
   };
   for (const line of text.split(/\r?\n/)) {
     if (HEADING.test(line)) {
@@ -67,6 +85,8 @@ export function serializeAnnotations(list: Annotation[]): string {
           .map((l) => (l.trim() ? `> ${l.trim()}` : ">"))
           .join("\n")
       );
+      const context = a.context?.replace(/\s+/g, " ").trim();
+      if (context) parts.push(`Context: ${context}`);
     }
     parts.push(a.comment.trim().split("\n").map(escapeLine).join("\n"));
     return parts.join("\n\n");

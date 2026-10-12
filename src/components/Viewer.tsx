@@ -8,7 +8,7 @@ import { usePreferences } from "@/lib/preferences";
 import { isRelativePath, resolveRelative } from "@/lib/paths";
 import { assetUrl, openUrl } from "@/lib/tauri";
 import { diffHtml, REMOVED_SELECTOR } from "@/lib/diff";
-import { buildIndex, findQuote, unwrapAll, wrapRange } from "@/lib/textRange";
+import { buildIndex, countQuote, findQuote, quoteContext, unwrapAll, wrapRange } from "@/lib/textRange";
 import type { Annotation } from "@/lib/annotations";
 
 export interface Document {
@@ -20,6 +20,8 @@ export interface Document {
 
 export interface TextSelection {
   quote: string;
+  // The text around the quote, if the quote is not unique in the report.
+  context?: string;
   rect: DOMRect;
 }
 
@@ -120,7 +122,7 @@ export function Viewer({
     annotations.forEach((a, i) => {
       if (!a.quote) return;
       const index = buildIndex(root, { dropWhitespace: true, skip: `${REMOVED_SELECTOR}, svg` });
-      const range = findQuote(index, a.quote);
+      const range = findQuote(index, a.quote, a.context);
       if (!range) return;
       wrapRange(index, range[0], range[1], () => {
         const m = document.createElement("mark");
@@ -149,7 +151,10 @@ export function Viewer({
         const raw = removed.length > 0 ? (frag.textContent ?? "") : sel.toString();
         const quote = raw.replace(/[ \t]+/g, " ").replace(/\n\s*\n+/g, "\n").trim();
         if (!quote) return callbacks.current.onSelection(null);
-        callbacks.current.onSelection({ quote, rect: range.getBoundingClientRect() });
+        const skip = `${REMOVED_SELECTOR}, svg`;
+        const index = buildIndex(root, { dropWhitespace: true, skip });
+        const context = countQuote(index, quote) > 1 ? quoteContext(range, skip) : "";
+        callbacks.current.onSelection({ quote, ...(context && { context }), rect: range.getBoundingClientRect() });
       }, 0);
     };
     const onClick = (e: MouseEvent) => {

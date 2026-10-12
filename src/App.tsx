@@ -255,7 +255,8 @@ function AppShell() {
   );
 
   const onSaveDraft = (d: Draft) => {
-    const entry = { quote: d.quote, comment: d.comment.trim() };
+    const entry: Annotation = { quote: d.quote, comment: d.comment.trim() };
+    if (d.context) entry.context = d.context;
     const list = d.index == null ? [...annotations, entry] : annotations.map((a, i) => (i === d.index ? entry : a));
     saveAnnotations(list);
     setActive(d.index ?? list.length - 1);
@@ -527,7 +528,7 @@ function AppShell() {
           style={{ top: textSel.rect.bottom + 6, left: textSel.rect.left }}
           onMouseDown={(e) => e.preventDefault()}
           onClick={() => {
-            setDraft({ index: null, quote: textSel.quote, comment: "" });
+            setDraft({ index: null, quote: textSel.quote, context: textSel.context, comment: "" });
             setTextSel(null);
             window.getSelection()?.removeAllRanges();
           }}

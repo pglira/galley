@@ -200,6 +200,15 @@
 .markdown-body .diff-removed * { text-decoration: line-through; }
 .markdown-body .diff-removed img,
 .markdown-body .diff-removed .mermaid-block { text-decoration: none; }
+/* An old and a new block of a changed text: light blocks, strong changes. */
+.markdown-body .diff-pair.diff-added { background: color-mix(in oklch, var(--diff-add-bg) 40%, transparent); }
+.markdown-body .diff-pair.diff-removed {
+  background: color-mix(in oklch, var(--diff-del-bg) 40%, transparent);
+  opacity: 0.85;
+}
+.markdown-body .diff-pair.diff-removed,
+.markdown-body .diff-pair.diff-removed * { text-decoration: none; }
+.markdown-body .diff-pair.diff-removed del.diff-del { text-decoration: line-through; opacity: 1; }
 .markdown-body img.diff-img-changed { outline: 3px solid var(--diff-add-line); outline-offset: 2px; }
 
 /* Quotes of annotations. */

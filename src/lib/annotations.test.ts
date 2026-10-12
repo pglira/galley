@@ -20,6 +20,18 @@ describe("annotations", () => {
     expect(parseAnnotations(serializeAnnotations(list))).toEqual(list);
   });
 
+  it("round-trips the context of a quote", () => {
+    const list = [
+      { quote: "Images", context: "4. Images: in this port or later?", comment: "now" },
+      { quote: "", comment: "Context: not a context" },
+      { quote: "q", comment: "Context: a comment line" },
+    ];
+    expect(parseAnnotations(serializeAnnotations(list))).toEqual(list);
+    expect(serializeAnnotations(list.slice(0, 1))).toBe(
+      "# Annotations\n\n## 1\n\n> Images\n\nContext: 4. Images: in this port or later?\n\nnow\n"
+    );
+  });
+
   it("writes the documented format", () => {
     expect(serializeAnnotations([{ quote: "q", comment: "c" }])).toBe("# Annotations\n\n## 1\n\n> q\n\nc\n");
   });

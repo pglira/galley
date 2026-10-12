@@ -49,7 +49,15 @@ The comment.
 
 ## 2
 
+> Images
+
+Context: Images: in this port or later? 9 of 48 configs use them.
+
+The quote occurs more than once in the report. The context line shows the text around the quote that the comment refers to.
+
+## 3
+
 A comment without a quote refers to the full report.
 ```
 
-The quote is the rendered text, so Markdown syntax such as `**` or `[...](...)` is not included.
+The quote and the context are the rendered text, so Markdown syntax such as `**` or `[...](...)` is not included. An ellipsis ("…") marks cut text in the context.

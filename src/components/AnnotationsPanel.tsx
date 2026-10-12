@@ -8,6 +8,7 @@ import type { Annotation } from "@/lib/annotations";
 export interface Draft {
   index: number | null;
   quote: string;
+  context?: string;
   comment: string;
 }
 
@@ -104,7 +105,7 @@ export function AnnotationsPanel({ enabled, annotations, active, onActivate, dra
                     title="Edit"
                     onClick={(e) => {
                       e.stopPropagation();
-                      onDraft({ index: i, quote: a.quote, comment: a.comment });
+                      onDraft({ index: i, quote: a.quote, context: a.context, comment: a.comment });
                     }}
                   >
                     <Pencil />

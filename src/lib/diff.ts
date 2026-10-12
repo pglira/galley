@@ -1,11 +1,16 @@
 // Diff of two rendered Markdown documents, shown in the newer document.
 //
 // The diff compares the block elements of both documents. Equal blocks stay
-// unchanged. A changed block with only inline content gets a word diff:
-// inserted words in <ins class="diff-ins">, deleted words in
-// <del class="diff-del">. Other changed blocks with the same tag are compared
-// child by child. Blocks that exist in one document only are marked with the
-// classes `diff-added` and `diff-removed`.
+// unchanged. A block with only inline content and changed text shows as the
+// old block (class `diff-removed`) followed by the new block (class
+// `diff-added`). If the two keep at least half of their text, both get the
+// class `diff-pair`, and a word diff marks the deleted text in the old block
+// with <del class="diff-del"> and the inserted text in the new block with
+// <ins class="diff-ins">. Changes that only short equal text separates form
+// one change. Table cells get the deleted and the inserted text inline.
+// Other changed blocks with the same tag are compared child by child. Blocks
+// that exist in one document only are marked with the classes `diff-added`
+// and `diff-removed`.
 
 import { diffArrays, diffWordsWithSpace } from "diff";
 import { buildIndex, insertAt, wrapRange } from "@/lib/textRange";
@@ -57,25 +62,77 @@ function removedCopy(el: Element): Element {
   return el;
 }
 
-function wordDiff(oldEl: Element, newEl: Element, imageKey: ImageKey) {
-  const oldText = oldEl.textContent ?? "";
-  const newText = newEl.textContent ?? "";
-  const parts = diffWordsWithSpace(oldText, newText);
+// Blocks that cannot show as an old and a new block side by side. They get
+// the deleted and the inserted text inline.
+const INLINE_DIFF = "td, th";
 
+// Equal text with fewer words than this between two changes joins them.
+const MIN_EQUAL_WORDS = 3;
+// A text block that keeps less than this part of its text is replaced as a whole.
+const MIN_KEPT = 0.5;
+
+const wordCount = (s: string) => s.split(/\s+/).filter(Boolean).length;
+const visibleLength = (s: string) => s.replace(/\s+/g, "").length;
+
+// A run of the word diff: equal text, or a change from `old` to `new`.
+type Run = { equal: true; text: string } | { equal: false; old: string; new: string };
+
+// Groups the parts of a word diff into runs. A short equal part between two
+// changes becomes part of both the old and the new text of one change.
+function groupRuns(parts: { value: string; added?: boolean; removed?: boolean }[]): Run[] {
+  const runs: Run[] = [];
+  const change = (): Run & { equal: false } => {
+    const last = runs[runs.length - 1];
+    if (last && !last.equal) return last;
+    const run: Run = { equal: false, old: "", new: "" };
+    runs.push(run);
+    return run;
+  };
+  parts.forEach((p, i) => {
+    if (p.added) change().new += p.value;
+    else if (p.removed) change().old += p.value;
+    else {
+      const last = runs[runs.length - 1];
+      const between = last && !last.equal && i < parts.length - 1;
+      if (between && wordCount(p.value) < MIN_EQUAL_WORDS) {
+        last.old += p.value;
+        last.new += p.value;
+      } else runs.push({ equal: true, text: p.value });
+    }
+  });
+  return runs;
+}
+
+// Wraps each character range of `el` in an element `tag` with class `cls`.
+function markRanges(el: Element, ranges: [number, number][], tag: string, cls: string) {
+  const doc = el.ownerDocument;
+  for (const [start, end] of ranges.reverse()) {
+    wrapRange(buildIndex(el), start, end, () => {
+      const m = doc.createElement(tag);
+      m.className = cls;
+      return m;
+    });
+  }
+}
+
+// Marks the changes of `runs` inside `newEl`: the inserted text in
+// <ins class="diff-ins">, and the deleted text in <del class="diff-del">
+// before it.
+function inlineDiff(newEl: Element, runs: Run[]) {
   type Op = { kind: "ins"; start: number; end: number } | { kind: "del"; at: number; text: string };
   const ops: Op[] = [];
   let pos = 0;
-  for (const p of parts) {
-    if (p.added) {
-      ops.push({ kind: "ins", start: pos, end: pos + p.value.length });
-      pos += p.value.length;
-    } else if (p.removed) {
-      ops.push({ kind: "del", at: pos, text: p.value });
-    } else {
-      pos += p.value.length;
+  for (const r of runs) {
+    if (r.equal) {
+      pos += r.text.length;
+      continue;
+    }
+    if (r.old) ops.push({ kind: "del", at: pos, text: r.old });
+    if (r.new) {
+      ops.push({ kind: "ins", start: pos, end: pos + r.new.length });
+      pos += r.new.length;
     }
   }
-
   const doc = newEl.ownerDocument;
   for (const op of ops.reverse()) {
     const index = buildIndex(newEl, { skip: ".diff-del" });
@@ -92,15 +149,57 @@ function wordDiff(oldEl: Element, newEl: Element, imageKey: ImageKey) {
       if (!insertAt(index, op.at, del, ".diff-ins")) newEl.appendChild(del);
     }
   }
+}
 
-  // Equal text, but other changes (an image, a link target): mark the block,
-  // and outline the changed images.
-  if (ops.length === 0) newEl.classList.add("diff-changed");
+// Compares two text blocks with the same tag. A block with changed text
+// shows as the old block followed by the new block, with the deleted text
+// and the inserted text marked, if the blocks keep at least half of their
+// text.
+function textDiff(oldEl: Element, newEl: Element, imageKey: ImageKey) {
+  const oldText = oldEl.textContent ?? "";
+  const newText = newEl.textContent ?? "";
+  const runs = groupRuns(diffWordsWithSpace(oldText, newText));
+
   const oldImgs = Array.from(oldEl.querySelectorAll("img"));
   const newImgs = Array.from(newEl.querySelectorAll("img"));
   newImgs.forEach((img, i) => {
     if (!oldImgs[i] || imageKey(oldImgs[i]) !== imageKey(img)) img.classList.add("diff-img-changed");
   });
+
+  // Equal text, but other changes (an image, a link target): mark the block.
+  if (runs.every((r) => r.equal)) {
+    newEl.classList.add("diff-changed");
+    return;
+  }
+
+  if (newEl.matches(INLINE_DIFF)) {
+    inlineDiff(newEl, runs);
+    return;
+  }
+  newEl.parentNode!.insertBefore(removedCopy(oldEl), newEl);
+  markAdded(newEl);
+  const kept = runs.reduce((n, r) => n + (r.equal ? visibleLength(r.text) : 0), 0);
+  if (kept < MIN_KEPT * Math.max(visibleLength(oldText), visibleLength(newText))) return;
+
+  oldEl.classList.add("diff-pair");
+  newEl.classList.add("diff-pair");
+  const deleted: [number, number][] = [];
+  const inserted: [number, number][] = [];
+  let oldPos = 0;
+  let newPos = 0;
+  for (const r of runs) {
+    if (r.equal) {
+      oldPos += r.text.length;
+      newPos += r.text.length;
+      continue;
+    }
+    if (r.old.trim()) deleted.push([oldPos, oldPos + r.old.length]);
+    if (r.new.trim()) inserted.push([newPos, newPos + r.new.length]);
+    oldPos += r.old.length;
+    newPos += r.new.length;
+  }
+  markRanges(oldEl, deleted, "del", "diff-del");
+  markRanges(newEl, inserted, "ins", "diff-ins");
 }
 
 function diffPair(oldEl: Element, newEl: Element, imageKey: ImageKey) {
@@ -114,7 +213,7 @@ function diffPair(oldEl: Element, newEl: Element, imageKey: ImageKey) {
     return;
   }
   if (isTextual(oldEl) && isTextual(newEl)) {
-    wordDiff(oldEl, newEl, imageKey);
+    textDiff(oldEl, newEl, imageKey);
     return;
   }
   diffChildren(oldEl, newEl, imageKey);
