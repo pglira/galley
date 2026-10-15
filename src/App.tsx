@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { open as openDialog, save as saveDialog } from "@tauri-apps/plugin-dialog";
+import { open as openDialog } from "@tauri-apps/plugin-dialog";
 import { MessageSquarePlus } from "lucide-react";
 import { ThemeProvider } from "@/lib/theme";
 import { PreferencesProvider, usePreferences } from "@/lib/preferences";
@@ -101,10 +101,12 @@ function AppShell() {
     if (typeof picked === "string") openDir(picked);
   }, [openDir]);
 
-  // Asks for the location of a new galley directory, creates it and opens it.
+  // Asks for a directory for a new galley, creates it if necessary, writes
+  // GALLEY.md into it and opens it. The folder picker has a button to create
+  // a new folder.
   const createDir = useCallback(async () => {
-    const picked = await saveDialog({ title: "Create a galley directory", defaultPath: "galley" });
-    if (!picked) return;
+    const picked = await openDialog({ title: "Create a galley directory", directory: true, multiple: false });
+    if (typeof picked !== "string") return;
     try {
       await tauri.createDir(picked);
       openDir(picked);
