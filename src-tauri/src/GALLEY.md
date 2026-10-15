@@ -29,6 +29,15 @@ The reviewer asks you to address the annotations of a snapshot, for example `02`
 3. Change the figures in `03/images/` as necessary.
 4. Write `03/report.md` last. Start from `02/report.md` and address each annotation.
 
+## Ask questions
+
+If you need a decision or information from the reviewer, ask for it in the report. Do not guess.
+
+- Put each question in its own short paragraph or list item, so that the reviewer can annotate it.
+- If there are options, give them as a numbered list.
+- The reviewer answers in `annotations.md`. The quote of the annotation is the question.
+- In the next snapshot, use the answers and remove the answered questions.
+
 ## Rules
 
 - Never change an existing snapshot. Always make a new snapshot.
