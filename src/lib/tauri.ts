@@ -1,5 +1,4 @@
 import { convertFileSrc, invoke } from "@tauri-apps/api/core";
-import { listen, type UnlistenFn } from "@tauri-apps/api/event";
 import { openUrl as openerOpenUrl } from "@tauri-apps/plugin-opener";
 
 export interface Snapshot {
@@ -61,10 +60,6 @@ export const tauri = {
   savePreferences: (prefs: PreferencesPayload) => invoke<void>("save_preferences", { prefs }),
   loadPreferences: () => invoke<PreferencesPayload>("load_preferences"),
 };
-
-export function onOpenDir(cb: (path: string) => void): Promise<UnlistenFn> {
-  return listen<string>("galley://open", (e) => cb(e.payload));
-}
 
 // The URL of a file in the open galley directory, served by the `galley` URI
 // scheme. A nonzero `version` adds a query, so that the webview loads the file

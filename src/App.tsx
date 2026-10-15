@@ -14,7 +14,7 @@ import { AnnotationsPanel, type Draft } from "@/components/AnnotationsPanel";
 import { ImageViewer } from "@/components/ImageViewer";
 import { StartScreen } from "@/components/StartScreen";
 import { SearchBox, SearchResults } from "@/components/SearchPanel";
-import { tauri, onOpenDir, assetUrl, type Galley, type Report, type SearchHit } from "@/lib/tauri";
+import { tauri, assetUrl, type Galley, type Report, type SearchHit } from "@/lib/tauri";
 import { parseAnnotations, serializeAnnotations, type Annotation } from "@/lib/annotations";
 import { buildPrompt, copyText } from "@/lib/prompt";
 import { renderMarkdown } from "@/lib/markdown";
@@ -115,17 +115,13 @@ function AppShell() {
     }
   }, [openDir]);
 
-  // Open the directory from the command line, and directories from later
-  // launches. Without a directory, the start screen shows.
+  // Open the directory from the command line. Without a directory, the start
+  // screen shows.
   useEffect(() => {
     tauri.getInitialDir().then((d) => {
       if (d) openDir(d);
     });
     tauri.getRecentDirs().then(setRecent).catch(() => {});
-    const off = onOpenDir(openDir);
-    return () => {
-      off.then((fn) => fn());
-    };
   }, [openDir]);
 
   // Poll the directory. Polling works on all file systems, also on network

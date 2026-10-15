@@ -8,7 +8,6 @@ mod protocol;
 mod settings;
 
 use commands::{InitialDir, OpenDir};
-use tauri::{Emitter, Manager};
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
@@ -18,15 +17,6 @@ pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_dialog::init())
-        .plugin(tauri_plugin_single_instance::init(|app, argv, _cwd| {
-            // A second launch with a directory opens it in the running window.
-            if let Some(dir) = cli::resolve(&argv) {
-                let _ = app.emit("galley://open", dir);
-            }
-            if let Some(window) = app.get_webview_window("main") {
-                let _ = window.set_focus();
-            }
-        }))
         .register_uri_scheme_protocol(protocol::SCHEME, protocol::handle)
         .manage(OpenDir::default())
         .manage(InitialDir(initial))
