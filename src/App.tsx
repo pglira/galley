@@ -64,6 +64,8 @@ function AppShell() {
   const articleRef = useRef<HTMLElement>(null);
   const viewerRef = useRef<ViewerHandle>(null);
   const exportPdfRef = useRef<(() => void) | null>(null);
+  const annotateRef = useRef<(() => void) | null>(null);
+  const addGeneralRef = useRef<(() => void) | null>(null);
   const galleyJson = useRef("");
   const { zoomIn, zoomOut, zoomReset, sidebarLeftWidth, sidebarRightWidth, setSidebarWidth, resetSidebarWidth } =
     usePreferences();
@@ -348,6 +350,12 @@ function AppShell() {
       } else if (meta && k === "f") {
         e.preventDefault();
         setSearchOpen(true);
+      } else if (meta && e.shiftKey && k === "m") {
+        e.preventDefault();
+        addGeneralRef.current?.();
+      } else if (meta && k === "m") {
+        e.preventDefault();
+        annotateRef.current?.();
       } else if (meta && k === "p") {
         e.preventDefault();
         exportPdfRef.current?.();
@@ -398,6 +406,20 @@ function AppShell() {
         }
       : null;
   exportPdfRef.current = exportPdf;
+
+  // Opens a draft for the selected text.
+  const annotateSelection = () => {
+    if (!textSel) return;
+    setDraft({ index: null, quote: textSel.quote, context: textSel.context, comment: "" });
+    setTextSel(null);
+    window.getSelection()?.removeAllRanges();
+  };
+  annotateRef.current = annotateSelection;
+
+  // Opens a draft for a general comment.
+  addGeneralRef.current = () => {
+    if (snapshot) setDraft({ index: null, quote: "", comment: "" });
+  };
 
   if (!galley) {
     return (
@@ -525,11 +547,8 @@ function AppShell() {
           className="fixed z-50 shadow-md"
           style={{ top: textSel.rect.bottom + 6, left: textSel.rect.left }}
           onMouseDown={(e) => e.preventDefault()}
-          onClick={() => {
-            setDraft({ index: null, quote: textSel.quote, context: textSel.context, comment: "" });
-            setTextSel(null);
-            window.getSelection()?.removeAllRanges();
-          }}
+          title="Annotate (Ctrl M)"
+          onClick={annotateSelection}
         >
           <MessageSquarePlus />
           Annotate

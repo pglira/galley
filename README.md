@@ -52,6 +52,7 @@ galley path/to/galley-directory
 - Change the text size of the report with `Ctrl +`, `Ctrl -` and `Ctrl 0` (reset), or with `Ctrl` and the mouse wheel. The images scale with the text.
 - Set the page width and the paper color (the page of the report) in the settings menu. Galley is always dark.
 - Search all reports and annotations with the field above the report list (`Ctrl Shift F`). Click a hit to open its snapshot at the match. `Ctrl F` finds text in the open report.
+- Annotate the selected text with the "Annotate" button or `Ctrl M`. Add a general comment with the plus icon in the annotations panel or `Ctrl Shift M`. Save a comment with `Ctrl Enter`, cancel with `Esc`.
 - Reload the selected snapshot with the reload icon in the toolbar (`F5`). Galley reads the report, its annotations and its images again. Galley also polls the directory every 2 s, but a reload also loads images that changed under the same name.
 - Export the report as a PDF with the export icon in the toolbar (`Ctrl P`). The PDF shows the report as it shows on screen, with the diff if it is on, on white paper. On Linux, Galley saves the PDF directly; the paper size comes from `$PAPERSIZE` or `/etc/papersize`, else from the locale. On other systems, the print dialog opens.
 - Links to web pages open in the browser. Remote images do not load: a report can only show images from the galley directory.
