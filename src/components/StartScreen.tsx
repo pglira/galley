@@ -14,7 +14,7 @@ export function StartScreen({ recent, onOpen, onCreate, onOpenRecent }: Props) {
       <div className="w-full max-w-md space-y-6">
         <div>
           <h1 className="text-2xl font-semibold">Galley</h1>
-          <p className="text-sm text-muted-foreground">Review Markdown reports from AI agents.</p>
+          <p className="text-sm text-muted-foreground">Review Markdown documents from AI agents.</p>
         </div>
         <div className="grid gap-2">
           <Button variant="outline" className="justify-start" onClick={onOpen}>

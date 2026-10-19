@@ -17,16 +17,16 @@ describe("isRelativePath", () => {
 
 describe("resolveRelative", () => {
   it("resolves against the directory of the file", () => {
-    expect(resolveRelative("/r/01/report.md", "images/plot.png")).toBe("/r/01/images/plot.png");
+    expect(resolveRelative("/r/01/document.md", "images/plot.png")).toBe("/r/01/images/plot.png");
   });
   it("handles . and .. segments", () => {
-    expect(resolveRelative("/r/01/report.md", "./a/../b.png")).toBe("/r/01/b.png");
-    expect(resolveRelative("/r/01/report.md", "../shared/c.png")).toBe("/r/shared/c.png");
+    expect(resolveRelative("/r/01/document.md", "./a/../b.png")).toBe("/r/01/b.png");
+    expect(resolveRelative("/r/01/document.md", "../shared/c.png")).toBe("/r/shared/c.png");
   });
   it("decodes percent-encoded names", () => {
-    expect(resolveRelative("/r/report.md", "my%20plot.png")).toBe("/r/my plot.png");
+    expect(resolveRelative("/r/document.md", "my%20plot.png")).toBe("/r/my plot.png");
   });
   it("keeps Windows separators", () => {
-    expect(resolveRelative("C:\\r\\report.md", "images/p.png")).toBe("C:\\r\\images\\p.png");
+    expect(resolveRelative("C:\\r\\document.md", "images/p.png")).toBe("C:\\r\\images\\p.png");
   });
 });

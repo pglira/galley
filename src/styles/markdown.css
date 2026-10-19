@@ -224,7 +224,7 @@
 
 /* The paper: the page that holds the rendered document. */
 .paper {
-  /* The unit of all lengths in the report. It scales with the text size. */
+  /* The unit of all lengths in the document. It scales with the text size. */
   --doc-rem: calc(1rem * var(--doc-zoom, 1));
   --background: var(--paper);
   background: var(--paper);
@@ -238,7 +238,7 @@
 .markdown-body img { cursor: zoom-in; zoom: var(--doc-zoom, 1); }
 .paper-dark { --primary: oklch(0.72 0.17 303); }
 
-/* Print: only the report in #print-root (src/lib/print.ts) prints. */
+/* Print: only the document in #print-root (src/lib/print.ts) prints. */
 #print-root { display: none; }
 @media print {
   @page { margin: 16mm 14mm; }

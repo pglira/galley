@@ -25,7 +25,7 @@ describe("textRange", () => {
     expect(countQuote(index, "Images")).toBe(2);
     expect(findQuote(index, "Images")).toEqual([1, 7]);
     expect(findQuote(index, "Images", "…Images: now or later?")).toEqual([7, 13]);
-    expect(findQuote(index, "Images", "not in the report")).toEqual([1, 7]);
+    expect(findQuote(index, "Images", "not in the document")).toEqual([1, 7]);
   });
 
   it("returns the block text around a selection", () => {

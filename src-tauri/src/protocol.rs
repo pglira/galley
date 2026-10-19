@@ -1,6 +1,6 @@
 //! The `galley` URI scheme serves files of the open galley directory, for
-//! example the images of a report. It refuses all paths outside that
-//! directory, so a report can only load files of the open galley.
+//! example the images of a document. It refuses all paths outside that
+//! directory, so a document can only load files of the open galley.
 
 use crate::commands::OpenDir;
 use percent_encoding::percent_decode_str;

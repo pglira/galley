@@ -4,11 +4,11 @@ import { openUrl as openerOpenUrl } from "@tauri-apps/plugin-opener";
 export interface Snapshot {
   name: string;
   path: string;
-  report_modified: number;
+  document_modified: number;
   annotations_modified: number | null;
 }
 
-export interface Report {
+export interface Document {
   name: string;
   path: string;
   snapshots: Snapshot[];
@@ -17,13 +17,13 @@ export interface Report {
 export interface Galley {
   path: string;
   has_rules: boolean;
-  reports: Report[];
+  documents: Document[];
 }
 
 export interface SearchHit {
-  report: string;
+  document: string;
   snapshot: string;
-  file: "report.md" | "annotations.md";
+  file: "document.md" | "annotations.md";
   line: number;
   text: string;
 }
@@ -48,12 +48,15 @@ export const tauri = {
   openDir: (path: string) => invoke<Galley>("open_dir", { path }),
   scanDir: () => invoke<Galley>("scan_dir"),
   initRules: () => invoke<void>("init_rules"),
+  readRules: () => invoke<string>("read_rules"),
+  writeRules: (text: string) => invoke<void>("write_rules", { text }),
+  rulesTemplate: () => invoke<string>("rules_template"),
   readFile: (path: string) => invoke<string>("read_file", { path }),
   readAnnotations: (snapshot: string) => invoke<string>("read_annotations", { snapshot }),
   writeAnnotations: (snapshot: string, text: string) =>
     invoke<void>("write_annotations", { snapshot, text }),
-  deleteReport: (report: string) => invoke<void>("delete_report", { report }),
-  deleteSnapshots: (report: string, names: string[]) => invoke<void>("delete_snapshots", { report, names }),
+  deleteDocument: (doc: string) => invoke<void>("delete_document", { document: doc }),
+  deleteSnapshots: (doc: string, names: string[]) => invoke<void>("delete_snapshots", { document: doc, names }),
   search: (query: string) => invoke<SearchResult>("search", { query }),
   hashFiles: (paths: string[]) => invoke<(string | null)[]>("hash_files", { paths }),
   exportPdf: (path: string) => invoke<void>("export_pdf", { path }),

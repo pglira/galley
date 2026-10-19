@@ -71,6 +71,22 @@ pub fn init_rules(open: State<'_, OpenDir>) -> AppResult<()> {
 }
 
 #[tauri::command]
+pub fn read_rules(open: State<'_, OpenDir>) -> AppResult<String> {
+    galley::read_rules(&open.get()?)
+}
+
+#[tauri::command]
+pub fn write_rules(text: String, open: State<'_, OpenDir>) -> AppResult<()> {
+    galley::write_rules(&open.get()?, &text)
+}
+
+/// The template of `GALLEY.md`.
+#[tauri::command]
+pub fn rules_template() -> &'static str {
+    galley::RULES_TEMPLATE
+}
+
+#[tauri::command]
 pub fn read_file(path: String, open: State<'_, OpenDir>) -> AppResult<String> {
     galley::read_text(&open.get()?, Path::new(&path))
 }
@@ -86,13 +102,13 @@ pub fn write_annotations(snapshot: String, text: String, open: State<'_, OpenDir
 }
 
 #[tauri::command]
-pub fn delete_report(report: String, open: State<'_, OpenDir>) -> AppResult<()> {
-    galley::delete_report(&open.get()?, Path::new(&report))
+pub fn delete_document(document: String, open: State<'_, OpenDir>) -> AppResult<()> {
+    galley::delete_document(&open.get()?, Path::new(&document))
 }
 
 #[tauri::command]
-pub fn delete_snapshots(report: String, names: Vec<String>, open: State<'_, OpenDir>) -> AppResult<()> {
-    galley::delete_snapshots(&open.get()?, Path::new(&report), &names)
+pub fn delete_snapshots(document: String, names: Vec<String>, open: State<'_, OpenDir>) -> AppResult<()> {
+    galley::delete_snapshots(&open.get()?, Path::new(&document), &names)
 }
 
 /// The most hits that one search returns.

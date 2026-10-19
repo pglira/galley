@@ -81,7 +81,7 @@ export function AnnotationsPanel({ enabled, annotations, active, onActivate, dra
       </div>
       <div className="min-h-0 flex-1 space-y-2 overflow-auto p-2">
         {enabled && annotations.length === 0 && !draft && (
-          <p className="p-1 text-xs text-muted-foreground">Select text in the report to annotate it (Ctrl M).</p>
+          <p className="p-1 text-xs text-muted-foreground">Select text in the document to annotate it (Ctrl M).</p>
         )}
         {annotations.map((a, i) =>
           draft?.index === i ? (

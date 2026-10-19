@@ -9,8 +9,8 @@ const PRINT_ID = "print-root";
 // through the print dialog of the system, which can also save a PDF.
 const DIRECT_PDF = /Linux/.test(navigator.userAgent);
 
-// Puts report HTML into an element that only the print media shows (see
-// `#print-root` in markdown.css). The report renders on white paper with the
+// Puts document HTML into an element that only the print media shows (see
+// `#print-root` in markdown.css). The document renders on white paper with the
 // light colors. `title` is the document title until `cleanup` runs.
 async function preparePrint(html: string, title: string): Promise<() => void> {
   document.getElementById(PRINT_ID)?.remove();
@@ -35,7 +35,7 @@ async function preparePrint(html: string, title: string): Promise<() => void> {
   };
 }
 
-// Exports report HTML as a PDF. `name` is the default file name without the
+// Exports document HTML as a PDF. `name` is the default file name without the
 // extension. Returns the path of the saved file, or null if the user cancels
 // or the print dialog handles the file.
 export async function exportPdf(html: string, name: string): Promise<string | null> {

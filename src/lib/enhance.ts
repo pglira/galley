@@ -4,7 +4,7 @@ import { attachCopyButtons } from "@/components/CodeCopyOverlay";
 import type { Tone } from "@/lib/theme";
 
 // Highlights the code blocks, adds copy buttons and renders the mermaid
-// diagrams of rendered report HTML in `root`, with the colors of `tone`.
+// diagrams of rendered document HTML in `root`, with the colors of `tone`.
 // Returns false if `cancelled()` becomes true before the end.
 export async function enhance(root: HTMLElement, tone: Tone, cancelled: () => boolean = () => false): Promise<boolean> {
   const codeBlocks = root.querySelectorAll<HTMLElement>("pre > code[class*='language-']");

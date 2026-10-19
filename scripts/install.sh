@@ -83,8 +83,8 @@ if [[ $desktop == 1 && "$(uname -s)" == "Linux" ]]; then
 [Desktop Entry]
 Type=Application
 Name=Galley
-GenericName=Report Reviewer
-Comment=Review Markdown reports from AI agents
+GenericName=Document Reviewer
+Comment=Review Markdown documents from AI agents
 Exec="$LIB_DIR/galley" %f
 Icon=galley
 Terminal=false

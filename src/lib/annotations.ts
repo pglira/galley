@@ -10,15 +10,15 @@
 //
 //   The comment.
 //
-// An annotation without a quote refers to the full report. The context line
-// is optional: it locates a quote that occurs more than once in the report.
+// An annotation without a quote refers to the full document. The context line
+// is optional: it locates a quote that occurs more than once in the document.
 // A comment line that starts with ">" or "Context:", or looks like a "## N"
 // heading, gets a Markdown escape ("\\"), so that it reads back as comment
 // text.
 
 export interface Annotation {
   quote: string;
-  // The text around the quote, if the quote is not unique in the report.
+  // The text around the quote, if the quote is not unique in the document.
   context?: string;
   comment: string;
 }

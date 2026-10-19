@@ -6,15 +6,16 @@ import { PreferencesProvider, usePreferences } from "@/lib/preferences";
 import { ResizeHandle } from "@/components/ResizeHandle";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { Button } from "@/components/ui/button";
-import { ReportTree, reportLabel, type Selection } from "@/components/ReportTree";
+import { DocumentTree, documentLabel, type Selection } from "@/components/DocumentTree";
 import { Toolbar } from "@/components/Toolbar";
-import { Viewer, type Document, type TextSelection, type ViewerHandle } from "@/components/Viewer";
+import { Viewer, type Content, type TextSelection, type ViewerHandle } from "@/components/Viewer";
 import { DocSearch } from "@/components/DocSearch";
 import { AnnotationsPanel, type Draft } from "@/components/AnnotationsPanel";
 import { ImageViewer } from "@/components/ImageViewer";
 import { StartScreen } from "@/components/StartScreen";
+import { RulesEditor } from "@/components/RulesEditor";
 import { SearchBox, SearchResults } from "@/components/SearchPanel";
-import { tauri, assetUrl, type Galley, type Report, type SearchHit } from "@/lib/tauri";
+import { tauri, assetUrl, type Galley, type Document, type SearchHit } from "@/lib/tauri";
 import { parseAnnotations, serializeAnnotations, type Annotation } from "@/lib/annotations";
 import { buildPrompt, copyText } from "@/lib/prompt";
 import { renderMarkdown } from "@/lib/markdown";
@@ -27,11 +28,11 @@ function joinPath(dir: string, name: string): string {
   return `${dir}${sep}${name}`;
 }
 
-// Absolute paths of the local images of a document.
-function imagePaths(doc: Document): string[] {
+// Absolute paths of the local images of the content of a snapshot.
+function imagePaths(content: Content): string[] {
   const out: string[] = [];
-  renderMarkdown(doc.source, (src) => {
-    if (isRelativePath(src)) out.push(resolveRelative(doc.filePath, src));
+  renderMarkdown(content.source, (src) => {
+    if (isRelativePath(src)) out.push(resolveRelative(content.filePath, src));
     return src;
   });
   return out;
@@ -42,10 +43,10 @@ function AppShell() {
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [selection, setSelection] = useState<Selection | null>(null);
-  const [doc, setDoc] = useState<Document | null>(null);
+  const [content, setContent] = useState<Content | null>(null);
   const [diffOn, setDiffOn] = useState(false);
   const [reference, setReference] = useState<string | null>(null);
-  const [compareDoc, setCompareDoc] = useState<Document | null>(null);
+  const [compareContent, setCompareContent] = useState<Content | null>(null);
   const [imageHashes, setImageHashes] = useState<Record<string, string>>({});
   const [annotations, setAnnotations] = useState<Annotation[]>([]);
   const [active, setActive] = useState<number | null>(null);
@@ -61,20 +62,22 @@ function AppShell() {
   const [reloadNonce, setReloadNonce] = useState(0);
   const [recent, setRecent] = useState<string[]>([]);
   const [image, setImage] = useState<{ src: string; alt: string } | null>(null);
+  const [rulesOpen, setRulesOpen] = useState(false);
   const articleRef = useRef<HTMLElement>(null);
   const viewerRef = useRef<ViewerHandle>(null);
   const exportPdfRef = useRef<(() => void) | null>(null);
+  const copyPromptRef = useRef<(() => void) | null>(null);
   const annotateRef = useRef<(() => void) | null>(null);
   const addGeneralRef = useRef<(() => void) | null>(null);
   const galleyJson = useRef("");
   const { zoomIn, zoomOut, zoomReset, sidebarLeftWidth, sidebarRightWidth, setSidebarWidth, resetSidebarWidth } =
     usePreferences();
 
-  const report: Report | null = galley?.reports.find((r) => r.name === selection?.report) ?? null;
-  const snapshot = report?.snapshots.find((s) => s.name === selection?.snapshot) ?? null;
+  const doc: Document | null = galley?.documents.find((r) => r.name === selection?.document) ?? null;
+  const snapshot = doc?.snapshots.find((s) => s.name === selection?.snapshot) ?? null;
   const references = useMemo(
-    () => (report?.snapshots ?? []).map((s) => s.name).filter((n) => n !== snapshot?.name),
-    [report, snapshot?.name]
+    () => (doc?.snapshots ?? []).map((s) => s.name).filter((n) => n !== snapshot?.name),
+    [doc, snapshot?.name]
   );
 
   const applyGalley = useCallback((g: Galley) => {
@@ -136,37 +139,37 @@ function AppShell() {
     return () => clearInterval(id);
   }, [galley != null, applyGalley]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Keep the selection valid: default to the last snapshot of the newest report.
+  // Keep the selection valid: default to the last snapshot of the newest document.
   useEffect(() => {
     if (!galley) return;
-    const r = galley.reports.find((x) => x.name === selection?.report) ?? galley.reports[0];
+    const r = galley.documents.find((x) => x.name === selection?.document) ?? galley.documents[0];
     if (!r) {
       if (selection) setSelection(null);
       return;
     }
     const s = r.snapshots.find((x) => x.name === selection?.snapshot) ?? r.snapshots[r.snapshots.length - 1];
-    if (r.name !== selection?.report || s.name !== selection?.snapshot) {
-      setSelection({ report: r.name, snapshot: s.name });
+    if (r.name !== selection?.document || s.name !== selection?.snapshot) {
+      setSelection({ document: r.name, snapshot: s.name });
     }
   }, [galley, selection]);
 
-  // Load the report of the selected snapshot, and reload it when it changes.
+  // Load the content of the selected snapshot, and reload it when it changes.
   useEffect(() => {
     if (!snapshot) {
-      setDoc(null);
+      setContent(null);
       return;
     }
     // Ignore responses that arrive after the selection changes.
     let cancelled = false;
-    const filePath = joinPath(snapshot.path, "report.md");
+    const filePath = joinPath(snapshot.path, "document.md");
     tauri
       .readFile(filePath)
-      .then((source) => !cancelled && setDoc({ source, filePath, version: reloadNonce }))
+      .then((source) => !cancelled && setContent({ source, filePath, version: reloadNonce }))
       .catch((e) => !cancelled && setError(String(e)));
     return () => {
       cancelled = true;
     };
-  }, [snapshot?.path, snapshot?.report_modified, reloadNonce]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [snapshot?.path, snapshot?.document_modified, reloadNonce]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // The annotations of the previous snapshot never apply to a new selection.
   useEffect(() => {
@@ -194,34 +197,34 @@ function AppShell() {
     setDraft(null);
     setActive(null);
     setTextSel(null);
-    if (!report || !snapshot) return;
-    const idx = report.snapshots.findIndex((s) => s.name === snapshot.name);
-    const prev = report.snapshots[idx - 1] ?? report.snapshots[idx + 1];
+    if (!doc || !snapshot) return;
+    const idx = doc.snapshots.findIndex((s) => s.name === snapshot.name);
+    const prev = doc.snapshots[idx - 1] ?? doc.snapshots[idx + 1];
     setReference(prev?.name ?? null);
-  }, [report?.name, snapshot?.name]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [doc?.name, snapshot?.name]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Load the reference document of the diff.
-  const refSnapshot = report?.snapshots.find((s) => s.name === reference) ?? null;
+  // Load the content of the reference snapshot of the diff.
+  const refSnapshot = doc?.snapshots.find((s) => s.name === reference) ?? null;
   useEffect(() => {
     if (!diffOn || !refSnapshot) {
-      setCompareDoc(null);
+      setCompareContent(null);
       return;
     }
     let cancelled = false;
-    const filePath = joinPath(refSnapshot.path, "report.md");
+    const filePath = joinPath(refSnapshot.path, "document.md");
     tauri
       .readFile(filePath)
-      .then((source) => !cancelled && setCompareDoc({ source, filePath, version: reloadNonce }))
+      .then((source) => !cancelled && setCompareContent({ source, filePath, version: reloadNonce }))
       .catch((e) => !cancelled && setError(String(e)));
     return () => {
       cancelled = true;
     };
-  }, [diffOn, refSnapshot?.path, refSnapshot?.report_modified, reloadNonce]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [diffOn, refSnapshot?.path, refSnapshot?.document_modified, reloadNonce]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Hash the images of both documents, so the diff detects changed images.
   useEffect(() => {
-    if (!doc || !compareDoc) return;
-    const urls = [doc, compareDoc].flatMap((d) => imagePaths(d).map((p) => ({ p, url: assetUrl(p, d.version) })));
+    if (!content || !compareContent) return;
+    const urls = [content, compareContent].flatMap((d) => imagePaths(d).map((p) => ({ p, url: assetUrl(p, d.version) })));
     if (urls.length === 0) return;
     let cancelled = false;
     tauri
@@ -239,7 +242,7 @@ function AppShell() {
     return () => {
       cancelled = true;
     };
-  }, [doc, compareDoc]);
+  }, [content, compareContent]);
 
   const saveAnnotations = useCallback(
     async (list: Annotation[]) => {
@@ -275,16 +278,16 @@ function AppShell() {
       ?.scrollIntoView({ block: "center", behavior: "smooth" });
   };
 
-  const onDeleteReport = async (r: Report) => {
+  const onDeleteDocument = async (r: Document) => {
     try {
-      await tauri.deleteReport(r.path);
+      await tauri.deleteDocument(r.path);
       applyGalley(await tauri.scanDir());
     } catch (e) {
       setError(String(e));
     }
   };
 
-  const onDeleteSnapshots = async (r: Report, names: string[]) => {
+  const onDeleteSnapshots = async (r: Document, names: string[]) => {
     try {
       await tauri.deleteSnapshots(r.path, names);
       applyGalley(await tauri.scanDir());
@@ -293,11 +296,11 @@ function AppShell() {
     }
   };
 
-  // Shows a search hit: selects its snapshot and, for a hit in the report,
+  // Shows a search hit: selects its snapshot and, for a hit in the document,
   // finds the query in the document.
   const onOpenHit = (hit: SearchHit) => {
-    setSelection({ report: hit.report, snapshot: hit.snapshot });
-    if (hit.file === "report.md") {
+    setSelection({ document: hit.document, snapshot: hit.snapshot });
+    if (hit.file === "document.md") {
       setFindQuery(allQuery.trim());
       setFindLine(hit.line - 1);
       setSearchOpen(true);
@@ -356,6 +359,9 @@ function AppShell() {
       } else if (meta && k === "m") {
         e.preventDefault();
         annotateRef.current?.();
+      } else if (meta && e.shiftKey && k === "c") {
+        e.preventDefault();
+        copyPromptRef.current?.();
       } else if (meta && k === "p") {
         e.preventDefault();
         exportPdfRef.current?.();
@@ -388,17 +394,17 @@ function AppShell() {
     };
   }, [pickDir, reload, zoomIn, zoomOut, zoomReset]);
 
-  const compare = diffOn && compareDoc ? compareDoc : null;
-  const title = report && snapshot
-    ? `${reportLabel(report.name).title} · Snapshot ${snapshot.name}${compare ? ` · changes since snapshot ${reference}` : ""}`
+  const compare = diffOn && compareContent ? compareContent : null;
+  const title = doc && snapshot
+    ? `${documentLabel(doc.name).title} · Snapshot ${snapshot.name}${compare ? ` · changes since snapshot ${reference}` : ""}`
     : (galley?.path ?? "No galley directory open");
 
   // The PDF title is also the default file name, for example
   // "2026-10-09_1430_cache-design_04" or "..._04_changes-since-03".
   const exportPdf =
-    report && snapshot && doc
+    doc && snapshot && content
       ? () => {
-          const name = `${report.name}_${snapshot.name}${compare ? `_changes-since-${reference}` : ""}`;
+          const name = `${doc.name}_${snapshot.name}${compare ? `_changes-since-${reference}` : ""}`;
           viewerRef.current
             ?.exportPdf(name)
             .then((path) => path && setNotice(`Saved ${path}`))
@@ -406,6 +412,21 @@ function AppShell() {
         }
       : null;
   exportPdfRef.current = exportPdf;
+
+  const [copied, setCopied] = useState(false);
+  // Copy the prompt for the agent. Does nothing if the snapshot has no annotations.
+  const copyPrompt = useCallback(async () => {
+    if (!doc || !snapshot || annotations.length === 0) return;
+    await copyText(buildPrompt(doc.name, snapshot.name, doc.snapshots.map((s) => s.name)));
+    setCopied(true);
+  }, [doc, snapshot, annotations.length]);
+  copyPromptRef.current = copyPrompt;
+
+  useEffect(() => {
+    if (!copied) return;
+    const id = setTimeout(() => setCopied(false), 1500);
+    return () => clearTimeout(id);
+  }, [copied]);
 
   // Opens a draft for the selected text.
   const annotateSelection = () => {
@@ -435,13 +456,14 @@ function AppShell() {
   return (
     <div className="flex h-full">
       <div className="flex h-full min-h-0 shrink-0" style={{ width: sidebarLeftWidth }}>
-        <ReportTree
+        <DocumentTree
           galley={galley}
           selection={selection}
           onSelect={setSelection}
           onOpenDir={pickDir}
           onInitRules={onInitRules}
-          onDeleteReport={onDeleteReport}
+          onEditRules={() => setRulesOpen(true)}
+          onDeleteDocument={onDeleteDocument}
           onDeleteSnapshots={onDeleteSnapshots}
           search={<SearchBox query={allQuery} onQueryChange={setAllQuery} inputRef={allInputRef} />}
           results={
@@ -463,11 +485,8 @@ function AppShell() {
           reference={reference}
           onReference={setReference}
           canCopyPrompt={annotations.length > 0}
-          onCopyPrompt={async () => {
-            if (report && snapshot) {
-              await copyText(buildPrompt(report.name, snapshot.name, report.snapshots.map((s) => s.name)));
-            }
-          }}
+          copied={copied}
+          onCopyPrompt={copyPrompt}
           onFind={() => setSearchOpen(true)}
           onReload={snapshot ? reload : null}
           onExportPdf={exportPdf}
@@ -490,9 +509,9 @@ function AppShell() {
         )}
         <div className="flex min-h-0 flex-1">
           <main className="relative flex min-w-0 flex-1">
-            {doc ? (
+            {content ? (
               <Viewer
-                doc={doc}
+                content={content}
                 compare={compare}
                 imageHashes={imageHashes}
                 annotations={annotations}
@@ -506,7 +525,7 @@ function AppShell() {
               />
             ) : (
               <div className="flex flex-1 items-center justify-center text-sm text-muted-foreground">
-                {galley ? "No report selected." : "Open a galley directory (Ctrl+O)."}
+                {galley ? "No document selected." : "Open a galley directory (Ctrl+O)."}
               </div>
             )}
             <DocSearch
@@ -555,6 +574,12 @@ function AppShell() {
         </Button>
       )}
       {image && <ImageViewer src={image.src} alt={image.alt} onClose={() => setImage(null)} />}
+      <RulesEditor
+        open={rulesOpen}
+        onClose={() => setRulesOpen(false)}
+        onSaved={() => setNotice("Saved GALLEY.md")}
+        onError={setError}
+      />
     </div>
   );
 }

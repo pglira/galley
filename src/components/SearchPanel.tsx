@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { MessageSquare, Search, X } from "lucide-react";
 import { tauri, type Galley, type SearchHit, type SearchResult } from "@/lib/tauri";
 import { snippet } from "@/lib/search";
-import { reportLabel } from "@/components/ReportTree";
+import { documentLabel } from "@/components/DocumentTree";
 
 const DEBOUNCE_MS = 200;
 
@@ -12,7 +12,7 @@ interface BoxProps {
   inputRef: React.RefObject<HTMLInputElement | null>;
 }
 
-// The input for the search in all reports.
+// The input for the search in all documents.
 export function SearchBox({ query, onQueryChange, inputRef }: BoxProps) {
   return (
     <div className="flex h-9 shrink-0 items-center gap-1.5 border-b px-3">
@@ -27,7 +27,7 @@ export function SearchBox({ query, onQueryChange, inputRef }: BoxProps) {
             e.currentTarget.blur();
           }
         }}
-        placeholder="Search all reports (Ctrl Shift F)"
+        placeholder="Search all documents (Ctrl Shift F)"
         className="h-7 min-w-0 flex-1 bg-transparent text-sm outline-none placeholder:text-muted-foreground"
       />
       {query && (
@@ -75,7 +75,7 @@ export function SearchResults({ query, galley, onOpenHit }: ResultsProps) {
 
   const groups: { key: string; hits: SearchHit[] }[] = [];
   for (const hit of result.hits) {
-    const key = `${hit.report}/${hit.snapshot}`;
+    const key = `${hit.document}/${hit.snapshot}`;
     const last = groups[groups.length - 1];
     if (last?.key === key) last.hits.push(hit);
     else groups.push({ key, hits: [hit] });
@@ -87,11 +87,11 @@ export function SearchResults({ query, galley, onOpenHit }: ResultsProps) {
         {result.truncated ? `First ${result.hits.length} matches` : `${result.hits.length} matches`}
       </p>
       {groups.map((g) => {
-        const { report, snapshot } = g.hits[0];
+        const { document: doc, snapshot } = g.hits[0];
         return (
           <div key={g.key} className="mb-1">
-            <div className="truncate px-3 pt-1 text-xs font-medium" title={report}>
-              {reportLabel(report).title} · Snapshot {snapshot}
+            <div className="truncate px-3 pt-1 text-xs font-medium" title={doc}>
+              {documentLabel(doc).title} · Snapshot {snapshot}
             </div>
             {g.hits.map((hit) => {
               const s = snippet(hit.text, query);

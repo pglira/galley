@@ -3,7 +3,7 @@ import { tauri } from "@/lib/tauri";
 
 export interface Preferences {
   copyAsMarkdown: boolean;
-  // Scale of the report text, 1 = 100 %.
+  // Scale of the document text, 1 = 100 %.
   zoom: number;
   // Maximum width of the paper in CSS pixels.
   paperWidth: number;

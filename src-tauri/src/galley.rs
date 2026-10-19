@@ -1,11 +1,11 @@
-//! The galley directory: reports, their snapshots and the annotations on them.
+//! The galley directory: documents, their snapshots and the annotations on them.
 //!
 //! ```text
 //! <root>/
 //!   GALLEY.md
-//!   <report>/          e.g. 2026-10-09_1430_cache-design
+//!   <document>/        e.g. 2026-10-09_1430_cache-design
 //!     01/              snapshot
-//!       report.md      written by the agent
+//!       document.md    written by the agent
 //!       images/        written by the agent
 //!       annotations.md written by Galley
 //! ```
@@ -17,7 +17,7 @@ use std::path::{Path, PathBuf};
 use std::time::UNIX_EPOCH;
 
 pub const RULES_FILE: &str = "GALLEY.md";
-pub const REPORT_FILE: &str = "report.md";
+pub const DOCUMENT_FILE: &str = "document.md";
 pub const ANNOTATIONS_FILE: &str = "annotations.md";
 pub const RULES_TEMPLATE: &str = include_str!("GALLEY.md");
 
@@ -25,14 +25,14 @@ pub const RULES_TEMPLATE: &str = include_str!("GALLEY.md");
 pub struct Snapshot {
     pub name: String,
     pub path: String,
-    /// Modification time of `report.md` in milliseconds since the Unix epoch.
-    pub report_modified: u64,
+    /// Modification time of `document.md` in milliseconds since the Unix epoch.
+    pub document_modified: u64,
     /// Modification time of `annotations.md`, or `None` if the file does not exist.
     pub annotations_modified: Option<u64>,
 }
 
 #[derive(Debug, Clone, Serialize, PartialEq, Eq)]
-pub struct Report {
+pub struct Document {
     pub name: String,
     pub path: String,
     /// Snapshots in ascending order.
@@ -43,8 +43,8 @@ pub struct Report {
 pub struct Galley {
     pub path: String,
     pub has_rules: bool,
-    /// Reports in descending order of name, so the newest report is first.
-    pub reports: Vec<Report>,
+    /// Documents in descending order of name, so the newest document is first.
+    pub documents: Vec<Document>,
 }
 
 fn is_snapshot_name(name: &str) -> bool {
@@ -79,24 +79,24 @@ fn subdirs(dir: &Path) -> AppResult<Vec<(String, PathBuf)>> {
     Ok(out)
 }
 
-/// Lists all reports and snapshots under `root`. A snapshot is a directory
-/// with a numeric name that contains `report.md`. Reports without snapshots
+/// Lists all documents and snapshots under `root`. A snapshot is a directory
+/// with a numeric name that contains `document.md`. Documents without snapshots
 /// are left out.
 pub fn scan(root: &Path) -> AppResult<Galley> {
-    let mut reports = Vec::new();
+    let mut documents = Vec::new();
     for (name, path) in subdirs(root)? {
         let mut snapshots = Vec::new();
         for (snap_name, snap_path) in subdirs(&path)? {
             if !is_snapshot_name(&snap_name) {
                 continue;
             }
-            let Some(report_modified) = modified_ms(&snap_path.join(REPORT_FILE)) else {
+            let Some(document_modified) = modified_ms(&snap_path.join(DOCUMENT_FILE)) else {
                 continue;
             };
             snapshots.push(Snapshot {
                 name: snap_name,
                 path: path_string(&snap_path)?,
-                report_modified,
+                document_modified,
                 annotations_modified: modified_ms(&snap_path.join(ANNOTATIONS_FILE)),
             });
         }
@@ -104,25 +104,25 @@ pub fn scan(root: &Path) -> AppResult<Galley> {
             continue;
         }
         snapshots.sort_by_key(|s| s.name.parse::<u64>().unwrap_or(0));
-        reports.push(Report {
+        documents.push(Document {
             name,
             path: path_string(&path)?,
             snapshots,
         });
     }
-    reports.sort_by(|a, b| b.name.cmp(&a.name));
+    documents.sort_by(|a, b| b.name.cmp(&a.name));
     Ok(Galley {
         path: path_string(root)?,
         has_rules: root.join(RULES_FILE).is_file(),
-        reports,
+        documents,
     })
 }
 
 #[derive(Debug, Clone, Serialize, PartialEq, Eq)]
 pub struct SearchHit {
-    pub report: String,
+    pub document: String,
     pub snapshot: String,
-    /// `report.md` or `annotations.md`.
+    /// `document.md` or `annotations.md`.
     pub file: String,
     /// Line number, starting at 1.
     pub line: usize,
@@ -139,8 +139,8 @@ pub struct SearchResult {
 /// The longest line text that a search hit contains.
 const HIT_TEXT_MAX: usize = 2000;
 
-/// Finds the lines that contain `query` (case-insensitive) in `report.md` and
-/// `annotations.md` of all snapshots. The newest report and the newest
+/// Finds the lines that contain `query` (case-insensitive) in `document.md` and
+/// `annotations.md` of all snapshots. The newest document and the newest
 /// snapshot come first. The search stops after `limit` hits.
 pub fn search(root: &Path, query: &str, limit: usize) -> AppResult<SearchResult> {
     let needle = query.trim().to_lowercase();
@@ -149,9 +149,9 @@ pub fn search(root: &Path, query: &str, limit: usize) -> AppResult<SearchResult>
         return Ok(SearchResult { hits, truncated: false });
     }
     let galley = scan(root)?;
-    for report in &galley.reports {
-        for snap in report.snapshots.iter().rev() {
-            for file in [REPORT_FILE, ANNOTATIONS_FILE] {
+    for document in &galley.documents {
+        for snap in document.snapshots.iter().rev() {
+            for file in [DOCUMENT_FILE, ANNOTATIONS_FILE] {
                 let Ok(text) = std::fs::read_to_string(Path::new(&snap.path).join(file)) else {
                     continue;
                 };
@@ -164,7 +164,7 @@ pub fn search(root: &Path, query: &str, limit: usize) -> AppResult<SearchResult>
                     }
                     let end = line.char_indices().nth(HIT_TEXT_MAX).map_or(line.len(), |(b, _)| b);
                     hits.push(SearchHit {
-                        report: report.name.clone(),
+                        document: document.name.clone(),
                         snapshot: snap.name.clone(),
                         file: file.to_string(),
                         line: i + 1,
@@ -187,6 +187,24 @@ pub fn init_rules(root: &Path) -> AppResult<()> {
     Ok(())
 }
 
+/// Reads `GALLEY.md` of `root`. Returns an empty string if the file does not
+/// exist.
+pub fn read_rules(root: &Path) -> AppResult<String> {
+    let p = root.join(RULES_FILE);
+    if !p.exists() {
+        return Ok(String::new());
+    }
+    crate::fs::read_text(p)
+}
+
+/// Writes `GALLEY.md` of `root` atomically.
+pub fn write_rules(root: &Path, text: &str) -> AppResult<()> {
+    let tmp = root.join(format!(".{RULES_FILE}.tmp"));
+    std::fs::write(&tmp, text)?;
+    std::fs::rename(&tmp, root.join(RULES_FILE))?;
+    Ok(())
+}
+
 /// Returns the canonical path of `path` if it is inside `root`.
 fn inside(root: &Path, path: &Path) -> AppResult<PathBuf> {
     let root = std::fs::canonicalize(root)?;
@@ -197,11 +215,11 @@ fn inside(root: &Path, path: &Path) -> AppResult<PathBuf> {
     Ok(p)
 }
 
-/// Returns the canonical path of `report` if it is a report directory of `root`.
-fn report_dir(root: &Path, report: &Path) -> AppResult<PathBuf> {
-    let p = inside(root, report)?;
+/// Returns the canonical path of `document` if it is a document directory of `root`.
+fn document_dir(root: &Path, document: &Path) -> AppResult<PathBuf> {
+    let p = inside(root, document)?;
     if p.parent() != Some(std::fs::canonicalize(root)?.as_path()) {
-        return Err(AppError::Invalid(format!("{} is not a report", p.display())));
+        return Err(AppError::Invalid(format!("{} is not a document", p.display())));
     }
     Ok(p)
 }
@@ -255,17 +273,17 @@ pub fn write_annotations(root: &Path, snapshot: &Path, text: &str) -> AppResult<
     Ok(())
 }
 
-/// Deletes a report directory with all its snapshots.
-pub fn delete_report(root: &Path, report: &Path) -> AppResult<()> {
-    std::fs::remove_dir_all(report_dir(root, report)?)?;
+/// Deletes a document directory with all its snapshots.
+pub fn delete_document(root: &Path, document: &Path) -> AppResult<()> {
+    std::fs::remove_dir_all(document_dir(root, document)?)?;
     Ok(())
 }
 
-/// Deletes the snapshots `names` of a report. All names are checked before
+/// Deletes the snapshots `names` of a document. All names are checked before
 /// the first deletion, so that an invalid name deletes nothing. Other
 /// snapshot directories (also one that the agent writes at the moment) stay.
-pub fn delete_snapshots(root: &Path, report: &Path, names: &[String]) -> AppResult<()> {
-    let dir = report_dir(root, report)?;
+pub fn delete_snapshots(root: &Path, document: &Path, names: &[String]) -> AppResult<()> {
+    let dir = document_dir(root, document)?;
     let paths = names
         .iter()
         .map(|name| {
@@ -303,24 +321,24 @@ mod tests {
     use std::fs;
     use tempfile::tempdir;
 
-    fn snapshot(root: &Path, report: &str, snap: &str) -> PathBuf {
-        let p = root.join(report).join(snap);
+    fn snapshot(root: &Path, document: &str, snap: &str) -> PathBuf {
+        let p = root.join(document).join(snap);
         fs::create_dir_all(&p).unwrap();
-        fs::write(p.join(REPORT_FILE), "# r\n").unwrap();
+        fs::write(p.join(DOCUMENT_FILE), "# r\n").unwrap();
         p
     }
 
     #[test]
-    fn scan_orders_reports_and_snapshots() {
+    fn scan_orders_documents_and_snapshots() {
         let dir = tempdir().unwrap();
         snapshot(dir.path(), "2026-01-01_0900_a", "01");
         snapshot(dir.path(), "2026-01-02_0900_b", "02");
         snapshot(dir.path(), "2026-01-02_0900_b", "10");
         snapshot(dir.path(), "2026-01-02_0900_b", "01");
         let g = scan(dir.path()).unwrap();
-        let names: Vec<_> = g.reports.iter().map(|r| r.name.as_str()).collect();
+        let names: Vec<_> = g.documents.iter().map(|r| r.name.as_str()).collect();
         assert_eq!(names, ["2026-01-02_0900_b", "2026-01-01_0900_a"]);
-        let snaps: Vec<_> = g.reports[0].snapshots.iter().map(|s| s.name.as_str()).collect();
+        let snaps: Vec<_> = g.documents[0].snapshots.iter().map(|s| s.name.as_str()).collect();
         assert_eq!(snaps, ["01", "02", "10"]);
         assert!(!g.has_rules);
     }
@@ -332,7 +350,7 @@ mod tests {
         fs::create_dir_all(dir.path().join("r/images")).unwrap();
         snapshot(dir.path(), ".hidden", "01");
         let g = scan(dir.path()).unwrap();
-        assert!(g.reports.is_empty());
+        assert!(g.documents.is_empty());
     }
 
     #[test]
@@ -343,7 +361,7 @@ mod tests {
         write_annotations(dir.path(), &s, "# Annotations\n").unwrap();
         assert_eq!(read_annotations(dir.path(), &s).unwrap(), "# Annotations\n");
         let g = scan(dir.path()).unwrap();
-        assert!(g.reports[0].snapshots[0].annotations_modified.is_some());
+        assert!(g.documents[0].snapshots[0].annotations_modified.is_some());
         write_annotations(dir.path(), &s, "  \n").unwrap();
         assert!(!s.join(ANNOTATIONS_FILE).exists());
     }
@@ -368,7 +386,7 @@ mod tests {
         let names = ["01".to_string(), "03".to_string()];
         delete_snapshots(dir.path(), &dir.path().join("r"), &names).unwrap();
         assert!(!dir.path().join("r/01").exists());
-        assert!(dir.path().join("r/02/report.md").exists());
+        assert!(dir.path().join("r/02/document.md").exists());
         assert!(!dir.path().join("r/03").exists());
         assert!(dir.path().join("r/04").exists());
     }
@@ -388,16 +406,16 @@ mod tests {
     }
 
     #[test]
-    fn delete_report_deletes_only_reports() {
+    fn delete_document_deletes_only_documents() {
         let dir = tempdir().unwrap();
         let s = snapshot(dir.path(), "r", "01");
-        assert!(delete_report(dir.path(), &s).is_err());
-        assert!(delete_report(dir.path(), dir.path()).is_err());
+        assert!(delete_document(dir.path(), &s).is_err());
+        assert!(delete_document(dir.path(), dir.path()).is_err());
         let other = tempdir().unwrap();
         snapshot(other.path(), "x", "01");
-        assert!(delete_report(dir.path(), &other.path().join("x")).is_err());
+        assert!(delete_document(dir.path(), &other.path().join("x")).is_err());
         assert!(other.path().join("x/01").exists());
-        delete_report(dir.path(), &dir.path().join("r")).unwrap();
+        delete_document(dir.path(), &dir.path().join("r")).unwrap();
         assert!(!dir.path().join("r").exists());
         assert!(dir.path().exists());
     }
@@ -407,14 +425,14 @@ mod tests {
         let dir = tempdir().unwrap();
         let s1 = snapshot(dir.path(), "r", "01");
         let s2 = snapshot(dir.path(), "r", "02");
-        fs::write(s1.join(REPORT_FILE), "# T\nThe Cache is hot.\n").unwrap();
-        fs::write(s2.join(REPORT_FILE), "# T\nno match\nthe cache is cold\n").unwrap();
+        fs::write(s1.join(DOCUMENT_FILE), "# T\nThe Cache is hot.\n").unwrap();
+        fs::write(s2.join(DOCUMENT_FILE), "# T\nno match\nthe cache is cold\n").unwrap();
         fs::write(s2.join(ANNOTATIONS_FILE), "## 1\n\nWhy a cache?\n").unwrap();
         let r = search(dir.path(), " CACHE ", 10).unwrap();
         let found: Vec<_> = r.hits.iter().map(|h| (h.snapshot.as_str(), h.file.as_str(), h.line)).collect();
         assert_eq!(
             found,
-            [("02", REPORT_FILE, 3), ("02", ANNOTATIONS_FILE, 3), ("01", REPORT_FILE, 2)]
+            [("02", DOCUMENT_FILE, 3), ("02", ANNOTATIONS_FILE, 3), ("01", DOCUMENT_FILE, 2)]
         );
         assert!(!r.truncated);
         assert_eq!(r.hits[2].text, "The Cache is hot.");
@@ -422,6 +440,15 @@ mod tests {
         assert_eq!(r.hits.len(), 2);
         assert!(r.truncated);
         assert!(search(dir.path(), "  ", 10).unwrap().hits.is_empty());
+    }
+
+    #[test]
+    fn write_and_read_rules() {
+        let dir = tempdir().unwrap();
+        assert_eq!(read_rules(dir.path()).unwrap(), "");
+        write_rules(dir.path(), "# Rules\n").unwrap();
+        assert_eq!(read_rules(dir.path()).unwrap(), "# Rules\n");
+        assert!(!dir.path().join(".GALLEY.md.tmp").exists());
     }
 
     #[test]

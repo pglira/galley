@@ -1,7 +1,7 @@
 [package]
 name = "galley"
 version = "0.1.3"
-description = "Review Markdown reports from AI agents"
+description = "Review Markdown documents from AI agents"
 authors = ["Garrett Graves", "Philipp Glira"]
 edition = "2021"
 

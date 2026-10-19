@@ -10,11 +10,11 @@ export function nextSnapshotName(names: string[]): string {
   return String(max + 1).padStart(width, "0");
 }
 
-export function buildPrompt(report: string, snapshot: string, allSnapshots: string[]): string {
+export function buildPrompt(doc: string, snapshot: string, allSnapshots: string[]): string {
   const next = nextSnapshotName(allSnapshots);
   return (
-    `Read the annotations in \`${report}/${snapshot}/annotations.md\` in the galley directory. ` +
-    `Address them in the new snapshot \`${report}/${next}/\`, as described in \`GALLEY.md\`.`
+    `Read the annotations in \`${doc}/${snapshot}/annotations.md\` in the galley directory. ` +
+    `Address them in the new snapshot \`${doc}/${next}/\`, as described in \`GALLEY.md\`.`
   );
 }
 

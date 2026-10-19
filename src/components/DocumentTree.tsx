@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { ChevronDown, ChevronRight, Ellipsis, FolderOpen, MessageSquare, Trash2 } from "lucide-react";
+import { ChevronDown, ChevronRight, Ellipsis, FolderOpen, MessageSquare, ScrollText, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -16,10 +16,10 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
-import type { Galley, Report } from "@/lib/tauri";
+import type { Galley, Document } from "@/lib/tauri";
 
 export interface Selection {
-  report: string;
+  document: string;
   snapshot: string;
 }
 
@@ -29,8 +29,9 @@ interface Props {
   onSelect: (s: Selection) => void;
   onOpenDir: () => void;
   onInitRules: () => void;
-  onDeleteReport: (report: Report) => void;
-  onDeleteSnapshots: (report: Report, names: string[]) => void;
+  onEditRules: () => void;
+  onDeleteDocument: (doc: Document) => void;
+  onDeleteSnapshots: (doc: Document, names: string[]) => void;
   // The search input, below the header.
   search?: React.ReactNode;
   // Search results, which replace the tree when set.
@@ -38,7 +39,7 @@ interface Props {
 }
 
 // Splits `2026-10-09_1430_cache-design` into a title and a date.
-export function reportLabel(name: string): { title: string; date: string } {
+export function documentLabel(name: string): { title: string; date: string } {
   const m = name.match(/^(\d{4}-\d{2}-\d{2})_(\d{2})(\d{2})_(.+)$/);
   if (!m) return { title: name, date: "" };
   return { title: m[4].replace(/[-_]/g, " "), date: `${m[1]} ${m[2]}:${m[3]}` };
@@ -50,13 +51,14 @@ interface Confirm {
   run: () => void;
 }
 
-export function ReportTree({
+export function DocumentTree({
   galley,
   selection,
   onSelect,
   onOpenDir,
   onInitRules,
-  onDeleteReport,
+  onEditRules,
+  onDeleteDocument,
   onDeleteSnapshots,
   search,
   results,
@@ -64,22 +66,22 @@ export function ReportTree({
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
   const [confirm, setConfirm] = useState<Confirm | null>(null);
 
-  const askDeleteReport = (report: Report) =>
+  const askDeleteDocument = (doc: Document) =>
     setConfirm({
-      title: "Delete report?",
-      text: `This deletes the directory "${report.name}" with its ${report.snapshots.length} snapshot(s), their images and annotations. You cannot undo this.`,
-      run: () => onDeleteReport(report),
+      title: "Delete document?",
+      text: `This deletes the directory "${doc.name}" with its ${doc.snapshots.length} snapshot(s), their images and annotations. You cannot undo this.`,
+      run: () => onDeleteDocument(doc),
     });
 
-  // Deletes the snapshots `names` of `report`. A report without snapshots
+  // Deletes the snapshots `names` of `doc`. A document without snapshots
   // after the deletion is deleted completely.
-  const askDeleteSnapshots = (report: Report, names: string[], title: string) => {
-    if (names.length === report.snapshots.length) return askDeleteReport(report);
+  const askDeleteSnapshots = (doc: Document, names: string[], title: string) => {
+    if (names.length === doc.snapshots.length) return askDeleteDocument(doc);
     const list = names.join(", ");
     setConfirm({
       title,
-      text: `This deletes snapshot(s) ${list} of "${report.name}", including their images and annotations. You cannot undo this.`,
-      run: () => onDeleteSnapshots(report, names),
+      text: `This deletes snapshot(s) ${list} of "${doc.name}", including their images and annotations. You cannot undo this.`,
+      run: () => onDeleteSnapshots(doc, names),
     });
   };
 
@@ -91,9 +93,16 @@ export function ReportTree({
         <span className="truncate text-xs font-semibold tracking-wide uppercase" title={galley?.path}>
           {dirName || "Galley"}
         </span>
-        <Button variant="ghost" size="icon-xs" onClick={onOpenDir} title="Open a galley directory">
-          <FolderOpen />
-        </Button>
+        <div className="flex shrink-0 items-center">
+          {galley?.has_rules && (
+            <Button variant="ghost" size="icon-xs" onClick={onEditRules} title="Edit GALLEY.md">
+              <ScrollText />
+            </Button>
+          )}
+          <Button variant="ghost" size="icon-xs" onClick={onOpenDir} title="Open a galley directory">
+            <FolderOpen />
+          </Button>
+        </div>
       </div>
 
       {search}
@@ -110,24 +119,24 @@ export function ReportTree({
       <div className="min-h-0 flex-1 overflow-auto py-1">
         {results}
         {!results && !galley && (
-          <p className="px-3 py-2 text-xs text-muted-foreground">Open a galley directory to see its reports.</p>
+          <p className="px-3 py-2 text-xs text-muted-foreground">Open a galley directory to see its documents.</p>
         )}
-        {!results && galley && galley.reports.length === 0 && (
-          <p className="px-3 py-2 text-xs text-muted-foreground">No reports yet.</p>
+        {!results && galley && galley.documents.length === 0 && (
+          <p className="px-3 py-2 text-xs text-muted-foreground">No documents yet.</p>
         )}
-        {!results && galley?.reports.map((report) => {
-          const label = reportLabel(report.name);
-          const isSelected = selection?.report === report.name;
-          const isOpen = !(collapsed[report.name] ?? !isSelected);
+        {!results && galley?.documents.map((doc) => {
+          const label = documentLabel(doc.name);
+          const isSelected = selection?.document === doc.name;
+          const isOpen = !(collapsed[doc.name] ?? !isSelected);
           return (
-            <div key={report.name}>
+            <div key={doc.name}>
               <div
                 className={cn(
                   "group flex cursor-pointer items-center gap-1 px-2 py-1 hover:bg-sidebar-accent",
                   isSelected && "font-medium"
                 )}
-                onClick={() => setCollapsed((c) => ({ ...c, [report.name]: isOpen }))}
-                title={report.name}
+                onClick={() => setCollapsed((c) => ({ ...c, [doc.name]: isOpen }))}
+                title={doc.name}
               >
                 {isOpen ? (
                   <ChevronDown className="size-3.5 shrink-0" />
@@ -142,17 +151,17 @@ export function ReportTree({
                   variant="ghost"
                   size="icon-xs"
                   className="opacity-0 group-hover:opacity-100"
-                  title="Delete report"
+                  title="Delete document"
                   onClick={(e) => {
                     e.stopPropagation();
-                    askDeleteReport(report);
+                    askDeleteDocument(doc);
                   }}
                 >
                   <Trash2 />
                 </Button>
               </div>
               {isOpen &&
-                [...report.snapshots].reverse().map((snap) => {
+                [...doc.snapshots].reverse().map((snap) => {
                   const active = isSelected && selection?.snapshot === snap.name;
                   return (
                     <div
@@ -161,7 +170,7 @@ export function ReportTree({
                         "group flex cursor-pointer items-center gap-2 py-0.5 pr-2 pl-8 text-sm hover:bg-sidebar-accent",
                         active && "bg-sidebar-accent font-medium text-sidebar-accent-foreground"
                       )}
-                      onClick={() => onSelect({ report: report.name, snapshot: snap.name })}
+                      onClick={() => onSelect({ document: doc.name, snapshot: snap.name })}
                     >
                       <span className="flex-1">Snapshot {snap.name}</span>
                       {snap.annotations_modified != null && (
@@ -182,18 +191,18 @@ export function ReportTree({
                         <DropdownMenuContent align="end" className="w-auto whitespace-nowrap" onClick={(e) => e.stopPropagation()}>
                           <DropdownMenuItem
                             variant="destructive"
-                            onSelect={() => askDeleteSnapshots(report, [snap.name], "Delete snapshot?")}
+                            onSelect={() => askDeleteSnapshots(doc, [snap.name], "Delete snapshot?")}
                           >
                             <Trash2 />
                             Delete snapshot {snap.name}
                           </DropdownMenuItem>
                           <DropdownMenuItem
                             variant="destructive"
-                            disabled={report.snapshots.length < 2}
+                            disabled={doc.snapshots.length < 2}
                             onSelect={() =>
                               askDeleteSnapshots(
-                                report,
-                                report.snapshots.map((s) => s.name).filter((n) => n !== snap.name),
+                                doc,
+                                doc.snapshots.map((s) => s.name).filter((n) => n !== snap.name),
                                 "Delete all other snapshots?"
                               )
                             }

@@ -103,7 +103,7 @@ export function renderMarkdown(source: string, resolveImage?: (src: string) => s
     return DOMPurify.sanitize(html, {
       ADD_ATTR: ["target", "class", "id", "aria-hidden", "data-source-map"],
       ADD_TAGS: ["section"],
-      // A <style> element in a report would restyle the whole app.
+      // A <style> element in a document would restyle the whole app.
       FORBID_TAGS: ["style"],
     });
   } finally {

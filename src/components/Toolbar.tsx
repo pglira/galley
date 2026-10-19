@@ -1,4 +1,3 @@
-import { useState } from "react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
@@ -30,11 +29,13 @@ interface Props {
   reference: string | null;
   onReference: (name: string) => void;
   canCopyPrompt: boolean;
-  onCopyPrompt: () => Promise<void>;
+  // True for a short time after the prompt was copied.
+  copied: boolean;
+  onCopyPrompt: () => void;
   onFind: () => void;
   // Null if no snapshot is selected.
   onReload: (() => void) | null;
-  // Null if no report shows.
+  // Null if no document shows.
   onExportPdf: (() => void) | null;
 }
 
@@ -46,6 +47,7 @@ export function Toolbar({
   reference,
   onReference,
   canCopyPrompt,
+  copied,
   onCopyPrompt,
   onFind,
   onReload,
@@ -54,7 +56,6 @@ export function Toolbar({
   const { paper, setPaper } = useTheme();
   const { copyAsMarkdown, setCopyAsMarkdown, zoom, zoomIn, zoomOut, zoomReset, paperWidth, setPaperWidth } =
     usePreferences();
-  const [copied, setCopied] = useState(false);
   const noReference = references.length === 0;
 
   return (
@@ -63,7 +64,7 @@ export function Toolbar({
       <div className="flex shrink-0 items-center gap-1">
         <label
           className={cn("flex items-center gap-1.5 text-xs", noReference && "opacity-50")}
-          title={noReference ? "This report has only one snapshot" : "Show the changes since a reference snapshot"}
+          title={noReference ? "This document has only one snapshot" : "Show the changes since a reference snapshot"}
         >
           <input
             type="checkbox"
@@ -95,14 +96,10 @@ export function Toolbar({
           disabled={!canCopyPrompt}
           title={
             canCopyPrompt
-              ? "Copy a prompt for the agent to the clipboard"
+              ? "Copy a prompt for the agent to the clipboard (Ctrl Shift C)"
               : "Add annotations to this snapshot first"
           }
-          onClick={async () => {
-            await onCopyPrompt();
-            setCopied(true);
-            setTimeout(() => setCopied(false), 1500);
-          }}
+          onClick={onCopyPrompt}
         >
           {copied ? <Check /> : <ClipboardCopy />}
           {copied ? "Copied" : "Copy prompt"}

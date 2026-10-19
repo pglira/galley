@@ -11,30 +11,31 @@ import { diffHtml, REMOVED_SELECTOR } from "@/lib/diff";
 import { buildIndex, countQuote, findQuote, quoteContext, unwrapAll, wrapRange } from "@/lib/textRange";
 import type { Annotation } from "@/lib/annotations";
 
-export interface Document {
+// The text of the document in a snapshot.
+export interface Content {
   source: string;
   filePath: string;
-  // The load generation of the document. Its images load with this version.
+  // The load generation of the content. Its images load with this version.
   version: number;
 }
 
 export interface TextSelection {
   quote: string;
-  // The text around the quote, if the quote is not unique in the report.
+  // The text around the quote, if the quote is not unique in the document.
   context?: string;
   rect: DOMRect;
 }
 
 export interface ViewerHandle {
-  // Exports the report as it shows (with the diff, if on) as a PDF on white
+  // Exports the document as it shows (with the diff, if on) as a PDF on white
   // paper. Returns the path of the saved file, or null.
   exportPdf: (name: string) => Promise<string | null>;
 }
 
 interface Props {
-  doc: Document;
+  content: Content;
   // The reference document of the diff, or null for no diff.
-  compare: Document | null;
+  compare: Content | null;
   // Content hash of each image, keyed by its asset URL.
   imageHashes: Record<string, string>;
   annotations: Annotation[];
@@ -51,12 +52,12 @@ const ANNOTATION_SELECTOR = "mark.galley-annotation";
 
 const scrollMemory = new Map<string, number>();
 
-function imageResolver(doc: Document) {
-  return (src: string) => (isRelativePath(src) ? assetUrl(resolveRelative(doc.filePath, src), doc.version) : src);
+function imageResolver(content: Content) {
+  return (src: string) => (isRelativePath(src) ? assetUrl(resolveRelative(content.filePath, src), content.version) : src);
 }
 
 export function Viewer({
-  doc,
+  content,
   compare,
   imageHashes,
   annotations,
@@ -82,13 +83,13 @@ export function Viewer({
   }, [onRendered, onSelection, onAnnotationClick, onImageClick]);
 
   const html = React.useMemo(() => {
-    const current = renderMarkdown(doc.source, imageResolver(doc));
+    const current = renderMarkdown(content.source, imageResolver(content));
     if (!compare) return current;
     const old = renderMarkdown(compare.source, imageResolver(compare));
     const imageKey = (img: Element) =>
       `${img.getAttribute("data-src") ?? ""}#${imageHashes[img.getAttribute("src") ?? ""] ?? ""}`;
     return diffHtml(current, old, imageKey);
-  }, [doc, compare, imageHashes]);
+  }, [content, compare, imageHashes]);
 
   // Highlight code and render diagrams after each new HTML. A new paper tone
   // restores the plain HTML first, so that code and diagrams get the colors
@@ -194,21 +195,21 @@ export function Viewer({
   React.useEffect(() => {
     const el = scrollerRef.current;
     if (!el) return;
-    el.scrollTop = scrollMemory.get(doc.filePath) ?? 0;
-    const onScroll = () => scrollMemory.set(doc.filePath, el.scrollTop);
+    el.scrollTop = scrollMemory.get(content.filePath) ?? 0;
+    const onScroll = () => scrollMemory.set(content.filePath, el.scrollTop);
     el.addEventListener("scroll", onScroll, { passive: true });
     return () => el.removeEventListener("scroll", onScroll);
-  }, [doc.filePath]);
+  }, [content.filePath]);
 
   // Intercept copy events to write original markdown source to clipboard.
   React.useEffect(() => {
     const root = ref.current;
     if (!root || !copyAsMarkdown || compare) return;
-    const onCopy = (e: ClipboardEvent) => handleCopyAsMarkdown(e, root as HTMLElement, doc.source);
+    const onCopy = (e: ClipboardEvent) => handleCopyAsMarkdown(e, root as HTMLElement, content.source);
     root.addEventListener("copy", onCopy);
     return () => root.removeEventListener("copy", onCopy);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [doc.source, copyAsMarkdown, compare]);
+  }, [content.source, copyAsMarkdown, compare]);
 
   React.useImperativeHandle(handleRef, () => ({ exportPdf: (name) => exportPdf(html, name) }), [html]);
 

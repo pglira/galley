@@ -49,9 +49,9 @@ mod tests {
         fs::write(dir.path().join("GALLEY.md"), "").unwrap();
         let snap = dir.path().join("r/01");
         fs::create_dir_all(&snap).unwrap();
-        fs::write(snap.join("report.md"), "").unwrap();
+        fs::write(snap.join("document.md"), "").unwrap();
         let canon = fs::canonicalize(dir.path()).unwrap();
-        assert_eq!(resolve(&args(&snap.join("report.md"))), canon.to_str().map(String::from));
+        assert_eq!(resolve(&args(&snap.join("document.md"))), canon.to_str().map(String::from));
     }
 
     #[test]
