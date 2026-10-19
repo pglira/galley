@@ -38,6 +38,12 @@ export function getSourceRange(
   const endEl = findMappedAncestor(focus, container);
   if (!startEl && !endEl) return null;
 
+  // A selection inside one block copies as plain text, unless it covers
+  // the whole text of the block.
+  if (startEl === endEl && selection.toString().trim() !== startEl!.textContent!.trim()) {
+    return null;
+  }
+
   // Collect all mapped elements in document order.
   const all = Array.from(container.querySelectorAll<HTMLElement>("[data-source-map]"));
   if (all.length === 0) return null;

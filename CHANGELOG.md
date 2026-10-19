@@ -34,6 +34,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - Code and diagrams take the colors of a new paper tone at once.
 - Links in a document do not navigate the window. Web links open in the browser.
 - `<style>` elements in a document are removed.
+- Copy of a part of one block, for example a line of a code block, copies only the selected text, also with "copy as Markdown" on.
 - `GALLEY.md` tells the agent to write `document.md` last in each snapshot.
 
 ### Changed
