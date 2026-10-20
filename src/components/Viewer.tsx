@@ -8,7 +8,7 @@ import { usePreferences } from "@/lib/preferences";
 import { isRelativePath, resolveRelative } from "@/lib/paths";
 import { assetUrl, openUrl } from "@/lib/tauri";
 import { diffHtml, REMOVED_SELECTOR } from "@/lib/diff";
-import { buildIndex, countQuote, findQuote, quoteContext, unwrapAll, wrapRange } from "@/lib/textRange";
+import { buildIndex, countQuote, findQuote, quoteContext, unwrapAll, wrapRange, type TextIndex } from "@/lib/textRange";
 import type { Annotation } from "@/lib/annotations";
 
 // The text of the document in a snapshot.
@@ -52,6 +52,49 @@ const ANNOTATION_SELECTOR = "mark.galley-annotation";
 
 const scrollMemory = new Map<string, number>();
 
+// Text that is the same in the plain and in the diff view of a document, and
+// before and after `enhance`.
+const ANCHOR_SKIP = `${REMOVED_SELECTOR}, pre, svg, button, .mermaid-block`;
+
+// A character of the newer document and its distance from the top of the
+// scroller. The character is an index into the anchor text of the article.
+interface ScrollAnchor {
+  pos: number;
+  offset: number;
+}
+
+function charRect(index: TextIndex, i: number): DOMRect {
+  const range = document.createRange();
+  range.setStart(index.nodes[i], index.offsets[i]);
+  range.setEnd(index.nodes[i], index.offsets[i] + 1);
+  return range.getBoundingClientRect();
+}
+
+// Returns the first character of the anchor text that shows at or below the
+// top of the scroller, or null if the scroller is at the top.
+function captureAnchor(scroller: HTMLElement, root: HTMLElement): ScrollAnchor | null {
+  if (scroller.scrollTop === 0) return null;
+  const index = buildIndex(root, { dropWhitespace: true, skip: ANCHOR_SKIP });
+  const top = scroller.getBoundingClientRect().top;
+  let lo = 0;
+  let hi = index.nodes.length;
+  while (lo < hi) {
+    const mid = (lo + hi) >> 1;
+    if (charRect(index, mid).bottom > top) hi = mid;
+    else lo = mid + 1;
+  }
+  if (lo === index.nodes.length) return null;
+  return { pos: lo, offset: charRect(index, lo).top - top };
+}
+
+// Scrolls so that the character of `anchor` is at its distance from the top.
+function restoreAnchor(scroller: HTMLElement, root: HTMLElement, anchor: ScrollAnchor) {
+  const index = buildIndex(root, { dropWhitespace: true, skip: ANCHOR_SKIP });
+  if (anchor.pos >= index.nodes.length) return;
+  const top = scroller.getBoundingClientRect().top;
+  scroller.scrollTop += charRect(index, anchor.pos).top - top - anchor.offset;
+}
+
 function imageResolver(content: Content) {
   return (src: string) => (isRelativePath(src) ? assetUrl(resolveRelative(content.filePath, src), content.version) : src);
 }
@@ -91,6 +134,25 @@ export function Viewer({
     return diffHtml(current, old, imageKey);
   }, [content, compare, imageHashes]);
 
+  // New HTML for the same document (diff on or off, a reload) keeps the text
+  // at the top of the scroller in its place. The anchor is read from the DOM
+  // before React replaces the HTML, and applied after the new HTML and again
+  // after `enhance`, which changes the height of code blocks and diagrams.
+  const shown = React.useRef({ html, filePath: content.filePath });
+  const anchor = React.useRef<ScrollAnchor | null>(null);
+  if (html !== shown.current.html && content.filePath === shown.current.filePath) {
+    if (scrollerRef.current && ref.current) anchor.current = captureAnchor(scrollerRef.current, ref.current);
+  }
+  React.useLayoutEffect(() => {
+    if (content.filePath !== shown.current.filePath) anchor.current = null;
+    shown.current = { html, filePath: content.filePath };
+    if (anchor.current && scrollerRef.current && ref.current) {
+      restoreAnchor(scrollerRef.current, ref.current, anchor.current);
+    }
+    // `ref` is stable.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [html]);
+
   // Highlight code and render diagrams after each new HTML. A new paper tone
   // restores the plain HTML first, so that code and diagrams get the colors
   // of the new tone.
@@ -105,6 +167,10 @@ export function Viewer({
     let cancelled = false;
     enhance(root, resolved, () => cancelled).then((done) => {
       if (!done) return;
+      if (anchor.current && scrollerRef.current) {
+        restoreAnchor(scrollerRef.current, root, anchor.current);
+        anchor.current = null;
+      }
       setRenderNonce((n) => n + 1);
       callbacks.current.onRendered?.();
     });
