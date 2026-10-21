@@ -38,6 +38,14 @@ pub fn get_recent_dirs() -> Vec<String> {
         .collect()
 }
 
+/// Removes a directory from the recent directories. The directory itself
+/// stays. Returns the recent directories that remain.
+#[tauri::command]
+pub fn remove_recent_dir(path: String) -> AppResult<Vec<String>> {
+    Settings::update(&data_dir(), |s| s.remove_recent(&path))?;
+    Ok(get_recent_dirs())
+}
+
 /// Makes a new galley directory with `GALLEY.md`. An existing directory gets
 /// `GALLEY.md` if it has none.
 #[tauri::command]

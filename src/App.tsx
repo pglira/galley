@@ -468,7 +468,18 @@ function AppShell() {
   if (!galley) {
     return (
       <>
-        <StartScreen recent={recent} onOpen={pickDir} onCreate={createDir} onOpenRecent={openDir} />
+        <StartScreen
+          recent={recent}
+          onOpen={pickDir}
+          onCreate={createDir}
+          onOpenRecent={openDir}
+          onRemoveRecent={(path) =>
+            tauri
+              .removeRecentDir(path)
+              .then(setRecent)
+              .catch((e) => setError(String(e)))
+          }
+        />
         {error && (
           <div className="fixed inset-x-0 bottom-0 bg-destructive/10 px-3 py-1 text-xs text-destructive">{error}</div>
         )}

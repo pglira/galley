@@ -44,6 +44,7 @@ export interface PreferencesPayload {
 export const tauri = {
   getInitialDir: () => invoke<string | null>("get_initial_dir"),
   getRecentDirs: () => invoke<string[]>("get_recent_dirs"),
+  removeRecentDir: (path: string) => invoke<string[]>("remove_recent_dir", { path }),
   createDir: (path: string) => invoke<void>("create_dir", { path }),
   openDir: (path: string) => invoke<Galley>("open_dir", { path }),
   scanDir: () => invoke<Galley>("scan_dir"),

@@ -49,6 +49,11 @@ impl Settings {
         self.recent_dirs.truncate(RECENT_LIMIT);
     }
 
+    /// Removes `dir` from the recent directories.
+    pub fn remove_recent(&mut self, dir: &str) {
+        self.recent_dirs.retain(|d| d != dir);
+    }
+
     /// Loads the settings from `dir`, applies `f` and saves them.
     pub fn update(dir: &Path, f: impl FnOnce(&mut Settings)) -> AppResult<()> {
         let mut s = Self::load(dir)?;
@@ -74,6 +79,16 @@ mod tests {
         Settings::update(dir.path(), |s| s.push_recent("/tmp/g".into())).unwrap();
         let loaded = Settings::load(dir.path()).unwrap();
         assert_eq!(loaded.recent_dirs, ["/tmp/g"]);
+    }
+
+    #[test]
+    fn remove_recent_keeps_the_others() {
+        let mut s = Settings::default();
+        s.push_recent("/g/a".into());
+        s.push_recent("/g/b".into());
+        s.remove_recent("/g/a");
+        s.remove_recent("/g/missing");
+        assert_eq!(s.recent_dirs, ["/g/b"]);
     }
 
     #[test]

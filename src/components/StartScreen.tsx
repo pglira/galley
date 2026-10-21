@@ -1,4 +1,4 @@
-import { FolderOpen, FolderPlus, History } from "lucide-react";
+import { FolderOpen, FolderPlus, History, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 interface Props {
@@ -6,9 +6,11 @@ interface Props {
   onOpen: () => void;
   onCreate: () => void;
   onOpenRecent: (path: string) => void;
+  // Removes a directory from the recent list. The directory itself stays.
+  onRemoveRecent: (path: string) => void;
 }
 
-export function StartScreen({ recent, onOpen, onCreate, onOpenRecent }: Props) {
+export function StartScreen({ recent, onOpen, onCreate, onOpenRecent, onRemoveRecent }: Props) {
   return (
     <div className="flex h-full items-center justify-center p-6">
       <div className="w-full max-w-md space-y-6">
@@ -34,15 +36,24 @@ export function StartScreen({ recent, onOpen, onCreate, onOpenRecent }: Props) {
             </h2>
             <ul>
               {recent.map((d) => (
-                <li key={d}>
+                <li key={d} className="group flex items-center rounded hover:bg-muted">
                   <button
-                    className="w-full truncate rounded px-2 py-1 text-left text-sm hover:bg-muted"
+                    className="min-w-0 flex-1 truncate px-2 py-1 text-left text-sm"
                     title={d}
                     onClick={() => onOpenRecent(d)}
                   >
                     <span className="font-medium">{d.split(/[\\/]/).pop()}</span>
                     <span className="ml-2 text-xs text-muted-foreground">{d}</span>
                   </button>
+                  <Button
+                    variant="ghost"
+                    size="icon-xs"
+                    className="mr-1 opacity-0 group-hover:opacity-100 focus-visible:opacity-100"
+                    title="Remove from the list"
+                    onClick={() => onRemoveRecent(d)}
+                  >
+                    <X />
+                  </Button>
                 </li>
               ))}
             </ul>

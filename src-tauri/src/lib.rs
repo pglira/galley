@@ -23,6 +23,7 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             commands::get_initial_dir,
             commands::get_recent_dirs,
+            commands::remove_recent_dir,
             commands::create_dir,
             commands::open_dir,
             commands::scan_dir,
