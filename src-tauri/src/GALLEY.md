@@ -49,7 +49,8 @@ If you need a decision or information from the reviewer, ask for it in the docum
 ## Rules
 
 - Never change an existing snapshot. Always make a new snapshot.
-- Use only relative paths for figures, for example `![Loss](images/loss.png)`. Do not use absolute paths or URLs.
+- Use only relative paths for figures, for example `![Training loss over the epochs](images/loss.png)`. Do not use absolute paths or URLs.
+- Give each figure a caption. Put the figure in its own paragraph, with an empty line before and after it. The alt text is the caption: write it as a short sentence that tells what the figure shows.
 - Use PNG, JPEG, SVG, GIF or WebP for figures.
 - Never write or change `annotations.md`.
 

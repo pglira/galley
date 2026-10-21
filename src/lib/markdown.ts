@@ -39,6 +39,33 @@ md.use(frontMatter, () => {
   // intentionally empty — front matter is not rendered
 });
 
+// An image that is alone in a paragraph renders as a figure. The alt text of
+// the image, with its inline Markdown, is the caption.
+md.core.ruler.push("figures", (state) => {
+  const tokens = state.tokens;
+  for (let i = 1; i < tokens.length - 1; i++) {
+    const open = tokens[i - 1];
+    const inline = tokens[i];
+    const close = tokens[i + 1];
+    if (open.type !== "paragraph_open" || inline.type !== "inline" || close.type !== "paragraph_close") continue;
+    // Paragraphs of tight lists render without tags.
+    if (open.hidden) continue;
+    const children = (inline.children ?? []).filter((t) => !(t.type === "text" && !t.content.trim()));
+    const image = children[0];
+    if (children.length !== 1 || image.type !== "image" || !image.content.trim()) continue;
+    open.tag = close.tag = "figure";
+    image.meta = { ...image.meta, figure: true };
+  }
+});
+
+const defaultImage = md.renderer.rules.image!;
+md.renderer.rules.image = (tokens, idx, options, env, self) => {
+  const token = tokens[idx];
+  const img = defaultImage(tokens, idx, options, env, self);
+  if (!token.meta?.figure) return img;
+  return `${img}<figcaption>${self.renderInline(token.children ?? [], options, env)}</figcaption>`;
+};
+
 // Inject data-source-map attributes on block-level tokens so the copy handler
 // can map rendered DOM selections back to original source lines.
 md.core.ruler.push("source_map_attrs", (state) => {

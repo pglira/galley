@@ -8,6 +8,14 @@ describe("renderMarkdown", () => {
     expect(html).toContain('src="asset://b.png"');
   });
 
+  it("renders an image alone in a paragraph as a figure with a caption", () => {
+    const html = renderMarkdown("![The *loss* curve](images/loss.png)\n\nText ![inline](images/b.png) here.");
+    expect(html).toMatch(/<figure[^>]*><img src="images\/loss.png" alt="The loss curve"><figcaption>The <em>loss<\/em> curve<\/figcaption><\/figure>/);
+    expect(html).toMatch(/<p[^>]*>Text <img src="images\/b.png" alt="inline"> here.<\/p>/);
+    expect(renderMarkdown("![](images/c.png)")).not.toContain("<figure");
+    expect(renderMarkdown("- ![a](images/d.png)\n- b")).not.toContain("figcaption");
+  });
+
   it("keeps image sources without a resolver", () => {
     expect(renderMarkdown("![a](images/a.png)")).toContain('src="images/a.png"');
   });

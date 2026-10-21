@@ -131,6 +131,12 @@
 .markdown-body .copy-code-btn:hover { color: var(--foreground); }
 
 .markdown-body img { max-width: 100%; border-radius: calc(0.4 * var(--doc-rem)); }
+.markdown-body figure { margin: calc(0.75 * var(--doc-rem)) 0; text-align: center; }
+.markdown-body figcaption {
+  margin-top: calc(0.4 * var(--doc-rem));
+  font-size: 0.9em;
+  color: var(--muted-foreground);
+}
 
 .markdown-body .mermaid-block {
   background: var(--muted);
@@ -266,6 +272,6 @@
   #print-root .markdown-body { padding: 0; }
   #print-root .copy-code-btn,
   #print-root .header-anchor { display: none; }
-  #print-root :is(img, pre, table, blockquote, .mermaid-block) { break-inside: avoid; }
+  #print-root :is(figure, img, pre, table, blockquote, .mermaid-block) { break-inside: avoid; }
   #print-root :is(h1, h2, h3, h4, h5, h6) { break-after: avoid; }
 }

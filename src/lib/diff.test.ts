@@ -20,6 +20,14 @@ describe("diffHtml", () => {
     expect(out).toMatch(/<p class="diff-added diff-pair">a <strong>b<\/strong> c <ins class="diff-ins">d\s?<\/ins>\s?e f<\/p>/);
   });
 
+  it("diffs the caption and the image of a figure", () => {
+    const fig = (src: string, cap: string) =>
+      `<figure><img src="${src}" alt="x"><figcaption>${cap}</figcaption></figure>`;
+    const out = diffHtml(fig("b.png", "the route of the long experiment"), fig("a.png", "the route of the experiment"));
+    expect(out).toContain('<img src="b.png" alt="x" class="diff-img-changed">');
+    expect(out).toContain('<ins class="diff-ins">long </ins>');
+  });
+
   it("joins changes that short equal text separates", () => {
     const out = diffHtml(
       "<p>keep this start. Both are optional now. keep this end</p>",
