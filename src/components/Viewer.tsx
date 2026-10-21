@@ -24,6 +24,9 @@ export interface TextSelection {
   // The text around the quote, if the quote is not unique in the document.
   context?: string;
   rect: DOMRect;
+  // True for a selection of only removed text of the diff. It has no quote:
+  // the removed text is not part of the snapshot that the annotations are for.
+  removed?: boolean;
 }
 
 // An image of the shown document.
@@ -246,12 +249,17 @@ export function Viewer({
         if (!sel || sel.isCollapsed || sel.rangeCount === 0) return callbacks.current.onSelection(null);
         const range = sel.getRangeAt(0);
         if (!root.contains(range.commonAncestorContainer)) return callbacks.current.onSelection(null);
+        const onlyRemoved = () =>
+          callbacks.current.onSelection({ quote: "", removed: true, rect: range.getBoundingClientRect() });
+        const ancestor = range.commonAncestorContainer;
+        const ancestorEl = ancestor instanceof Element ? ancestor : ancestor.parentElement;
+        if (ancestorEl?.closest(REMOVED_SELECTOR)) return onlyRemoved();
         const frag = range.cloneContents();
         const removed = frag.querySelectorAll(REMOVED_SELECTOR);
         removed.forEach((e) => e.remove());
         const raw = removed.length > 0 ? (frag.textContent ?? "") : sel.toString();
         const quote = raw.replace(/[ \t]+/g, " ").replace(/\n\s*\n+/g, "\n").trim();
-        if (!quote) return callbacks.current.onSelection(null);
+        if (!quote) return removed.length > 0 ? onlyRemoved() : callbacks.current.onSelection(null);
         const skip = `${REMOVED_SELECTOR}, svg`;
         const index = buildIndex(root, { dropWhitespace: true, skip });
         const context = countQuote(index, quote) > 1 ? quoteContext(range, skip) : "";

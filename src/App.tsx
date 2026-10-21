@@ -453,7 +453,7 @@ function AppShell() {
 
   // Opens a draft for the selected text.
   const annotateSelection = () => {
-    if (!textSel) return;
+    if (!textSel || textSel.removed) return;
     setDraft({ index: null, quote: textSel.quote, context: textSel.context, comment: "" });
     setTextSel(null);
     window.getSelection()?.removeAllRanges();
@@ -595,7 +595,15 @@ function AppShell() {
           </aside>
         </div>
       </div>
-      {textSel && (
+      {textSel?.removed && (
+        <div
+          className="fixed z-50 rounded-md border bg-popover px-2 py-1 text-xs text-popover-foreground shadow-md"
+          style={{ top: textSel.rect.bottom + 6, left: textSel.rect.left }}
+        >
+          Removed text is not in this snapshot. Annotate the new text or add a general comment.
+        </div>
+      )}
+      {textSel && !textSel.removed && (
         <Button
           size="xs"
           className="fixed z-50 shadow-md"
