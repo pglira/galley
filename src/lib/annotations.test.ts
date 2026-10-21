@@ -32,6 +32,18 @@ describe("annotations", () => {
     );
   });
 
+  it("round-trips annotations of images", () => {
+    const list = [
+      { quote: "", image: "images/loss.png", comment: "Use a log scale." },
+      { quote: "", comment: "Image: not an image line" },
+      { quote: "q", comment: "first\nImage: a comment line" },
+    ];
+    expect(parseAnnotations(serializeAnnotations(list))).toEqual(list);
+    expect(serializeAnnotations(list.slice(0, 1))).toBe(
+      "# Annotations\n\n## 1\n\nImage: images/loss.png\n\nUse a log scale.\n"
+    );
+  });
+
   it("writes the documented format", () => {
     expect(serializeAnnotations([{ quote: "q", comment: "c" }])).toBe("# Annotations\n\n## 1\n\n> q\n\nc\n");
   });

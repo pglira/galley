@@ -221,6 +221,12 @@
 .markdown-body mark.galley-annotation.active {
   background: color-mix(in oklch, var(--primary) 35%, transparent);
 }
+.markdown-body img.galley-annotated-image {
+  box-shadow: 0 0 0 3px color-mix(in oklch, var(--primary) 60%, transparent);
+}
+.markdown-body img.galley-annotated-image.active {
+  box-shadow: 0 0 0 5px var(--primary);
+}
 
 /* The paper: the page that holds the rendered document. */
 .paper {

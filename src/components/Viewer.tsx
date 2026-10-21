@@ -26,6 +26,16 @@ export interface TextSelection {
   rect: DOMRect;
 }
 
+// An image of the shown document.
+export interface DocImage {
+  src: string;
+  alt: string;
+  // The image path as it is written in the document.
+  path: string;
+  // True for an image that shows only as removed text of the diff.
+  removed: boolean;
+}
+
 export interface ViewerHandle {
   // Exports the document as it shows (with the diff, if on) as a PDF on white
   // paper. Returns the path of the saved file, or null.
@@ -42,13 +52,27 @@ interface Props {
   activeAnnotation: number | null;
   onSelection: (sel: TextSelection | null) => void;
   onAnnotationClick: (index: number) => void;
-  onImageClick: (src: string, alt: string) => void;
+  // Receives all images of the shown document and the index of the clicked one.
+  onImageClick: (images: DocImage[], index: number) => void;
   articleRef?: React.RefObject<HTMLElement | null>;
   handleRef?: React.Ref<ViewerHandle>;
   onRendered?: () => void;
 }
 
 const ANNOTATION_SELECTOR = "mark.galley-annotation";
+const IMAGE_MARK = "galley-annotated-image";
+
+function docImages(root: HTMLElement): { el: HTMLImageElement; image: DocImage }[] {
+  return Array.from(root.querySelectorAll("img")).map((el) => ({
+    el,
+    image: {
+      src: el.currentSrc || el.src,
+      alt: el.alt,
+      path: el.getAttribute("data-src") ?? "",
+      removed: el.closest(REMOVED_SELECTOR) != null,
+    },
+  }));
+}
 
 const scrollMemory = new Map<string, number>();
 
@@ -186,7 +210,17 @@ export function Viewer({
     const root = ref.current;
     if (!root) return;
     unwrapAll(root, ANNOTATION_SELECTOR);
+    const images = docImages(root).filter((d) => !d.image.removed);
+    images.forEach(({ el }) => el.classList.remove(IMAGE_MARK, "active"));
     annotations.forEach((a, i) => {
+      if (a.image) {
+        // The first image with the path carries the mark.
+        const el = images.find((d) => d.image.path === a.image)?.el;
+        if (!el) return;
+        el.classList.add(IMAGE_MARK);
+        if (i === activeAnnotation) el.classList.add("active");
+        return;
+      }
       if (!a.quote) return;
       const index = buildIndex(root, { dropWhitespace: true, skip: `${REMOVED_SELECTOR}, svg` });
       const range = findQuote(index, a.quote, a.context);
@@ -228,8 +262,9 @@ export function Viewer({
       const target = e.target as Element;
       if (target.tagName === "IMG" && !window.getSelection()?.toString()) {
         e.preventDefault();
-        const img = target as HTMLImageElement;
-        callbacks.current.onImageClick(img.currentSrc || img.src, img.alt);
+        const images = docImages(root);
+        const index = images.findIndex((d) => d.el === target);
+        callbacks.current.onImageClick(images.map((d) => d.image), index);
         return;
       }
       // Links never navigate the webview. Anchors scroll, web and mail links

@@ -9,6 +9,7 @@ export interface Draft {
   index: number | null;
   quote: string;
   context?: string;
+  image?: string;
   comment: string;
 }
 
@@ -21,6 +22,8 @@ interface Props {
   onDraft: (draft: Draft | null) => void;
   onSave: (draft: Draft) => void;
   onDelete: (index: number) => void;
+  // The URL of an image path of the document.
+  imageUrl: (path: string) => string;
 }
 
 function Quote({ text }: { text: string }) {
@@ -31,13 +34,35 @@ function Quote({ text }: { text: string }) {
   );
 }
 
-function Editor({ draft, onDraft, onSave }: Pick<Props, "onDraft" | "onSave"> & { draft: Draft }) {
+function ImageRef({ path, url }: { path: string; url: string }) {
+  return (
+    <div className="mb-1.5 flex items-center gap-2 border-l-2 border-primary/60 pl-2">
+      <img src={url} alt="" className="h-10 max-w-16 rounded object-contain" />
+      <span className="truncate text-xs text-muted-foreground" title={path}>
+        {path}
+      </span>
+    </div>
+  );
+}
+
+function Editor({
+  draft,
+  onDraft,
+  onSave,
+  imageUrl,
+}: Pick<Props, "onDraft" | "onSave" | "imageUrl"> & { draft: Draft }) {
   const ref = useRef<HTMLTextAreaElement>(null);
   useEffect(() => ref.current?.focus(), []);
   const save = () => draft.comment.trim() && onSave(draft);
   return (
     <div className="rounded-md border border-primary/60 bg-card p-2">
-      {draft.quote ? <Quote text={draft.quote} /> : <p className="mb-1.5 text-xs text-muted-foreground">General comment</p>}
+      {draft.image ? (
+        <ImageRef path={draft.image} url={imageUrl(draft.image)} />
+      ) : draft.quote ? (
+        <Quote text={draft.quote} />
+      ) : (
+        <p className="mb-1.5 text-xs text-muted-foreground">General comment</p>
+      )}
       <textarea
         ref={ref}
         className="min-h-20 w-full resize-y rounded border bg-background p-1.5 text-sm outline-none focus:border-ring"
@@ -61,7 +86,17 @@ function Editor({ draft, onDraft, onSave }: Pick<Props, "onDraft" | "onSave"> & 
   );
 }
 
-export function AnnotationsPanel({ enabled, annotations, active, onActivate, draft, onDraft, onSave, onDelete }: Props) {
+export function AnnotationsPanel({
+  enabled,
+  annotations,
+  active,
+  onActivate,
+  draft,
+  onDraft,
+  onSave,
+  onDelete,
+  imageUrl,
+}: Props) {
   const activeRef = useRef<HTMLDivElement>(null);
   useEffect(() => activeRef.current?.scrollIntoView({ block: "nearest" }), [active]);
 
@@ -81,11 +116,11 @@ export function AnnotationsPanel({ enabled, annotations, active, onActivate, dra
       </div>
       <div className="min-h-0 flex-1 space-y-2 overflow-auto p-2">
         {enabled && annotations.length === 0 && !draft && (
-          <p className="p-1 text-xs text-muted-foreground">Select text in the document to annotate it (Ctrl M).</p>
+          <p className="p-1 text-xs text-muted-foreground">Select text in the document to annotate it (Ctrl M). Open an image to comment on it.</p>
         )}
         {annotations.map((a, i) =>
           draft?.index === i ? (
-            <Editor key={i} draft={draft} onDraft={onDraft} onSave={onSave} />
+            <Editor key={i} draft={draft} onDraft={onDraft} onSave={onSave} imageUrl={imageUrl} />
           ) : (
             <div
               key={i}
@@ -105,7 +140,7 @@ export function AnnotationsPanel({ enabled, annotations, active, onActivate, dra
                     title="Edit"
                     onClick={(e) => {
                       e.stopPropagation();
-                      onDraft({ index: i, quote: a.quote, context: a.context, comment: a.comment });
+                      onDraft({ index: i, quote: a.quote, context: a.context, image: a.image, comment: a.comment });
                     }}
                   >
                     <Pencil />
@@ -123,12 +158,14 @@ export function AnnotationsPanel({ enabled, annotations, active, onActivate, dra
                   </Button>
                 </div>
               </div>
-              {a.quote && <Quote text={a.quote} />}
+              {a.image ? <ImageRef path={a.image} url={imageUrl(a.image)} /> : a.quote && <Quote text={a.quote} />}
               <p className="text-sm whitespace-pre-wrap">{a.comment}</p>
             </div>
           )
         )}
-        {draft && draft.index === null && <Editor draft={draft} onDraft={onDraft} onSave={onSave} />}
+        {draft && draft.index === null && (
+          <Editor draft={draft} onDraft={onDraft} onSave={onSave} imageUrl={imageUrl} />
+        )}
       </div>
     </div>
   );

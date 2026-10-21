@@ -74,7 +74,13 @@ The quote occurs more than once in the document. The context line shows the text
 
 ## 3
 
-A comment without a quote refers to the full document.
+Image: images/loss.png
+
+The comment refers to the full image. The path is the image path as it is written in `document.md`.
+
+## 4
+
+A comment without a quote and without an image refers to the full document.
 ```
 
 The quote and the context are the rendered text, so Markdown syntax such as `**` or `[...](...)` is not included. An ellipsis ("…") marks cut text in the context.

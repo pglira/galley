@@ -8,7 +8,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { Button } from "@/components/ui/button";
 import { DocumentTree, documentLabel, type Selection } from "@/components/DocumentTree";
 import { Toolbar } from "@/components/Toolbar";
-import { Viewer, type Content, type TextSelection, type ViewerHandle } from "@/components/Viewer";
+import { Viewer, type Content, type DocImage, type TextSelection, type ViewerHandle } from "@/components/Viewer";
 import { DocSearch } from "@/components/DocSearch";
 import { AnnotationsPanel, type Draft } from "@/components/AnnotationsPanel";
 import { ImageViewer } from "@/components/ImageViewer";
@@ -61,7 +61,7 @@ function AppShell() {
   // Increments on each manual reload; the snapshot files load again.
   const [reloadNonce, setReloadNonce] = useState(0);
   const [recent, setRecent] = useState<string[]>([]);
-  const [image, setImage] = useState<{ src: string; alt: string } | null>(null);
+  const [gallery, setGallery] = useState<{ images: DocImage[]; index: number } | null>(null);
   const [rulesOpen, setRulesOpen] = useState(false);
   const articleRef = useRef<HTMLElement>(null);
   const viewerRef = useRef<ViewerHandle>(null);
@@ -260,6 +260,7 @@ function AppShell() {
   const onSaveDraft = (d: Draft) => {
     const entry: Annotation = { quote: d.quote, comment: d.comment.trim() };
     if (d.context) entry.context = d.context;
+    if (d.image) entry.image = d.image;
     const list = d.index == null ? [...annotations, entry] : annotations.map((a, i) => (i === d.index ? entry : a));
     saveAnnotations(list);
     setActive(d.index ?? list.length - 1);
@@ -273,10 +274,32 @@ function AppShell() {
 
   const activate = (index: number) => {
     setActive(index);
-    articleRef.current
-      ?.querySelector(`mark.galley-annotation[data-annotation="${index}"]`)
-      ?.scrollIntoView({ block: "center", behavior: "smooth" });
+    const image = annotations[index]?.image;
+    const target = image
+      ? Array.from(articleRef.current?.querySelectorAll("img.galley-annotated-image") ?? []).find(
+          (el) => el.getAttribute("data-src") === image
+        )
+      : articleRef.current?.querySelector(`mark.galley-annotation[data-annotation="${index}"]`);
+    target?.scrollIntoView({ block: "center", behavior: "smooth" });
   };
+
+  // The annotations of the image that the image viewer shows.
+  const shownImage = gallery ? gallery.images[gallery.index] : null;
+  const imageComments = shownImage
+    ? annotations.filter((a) => a.image && a.image === shownImage.path).map((a) => a.comment)
+    : [];
+  const commentOnImage =
+    snapshot && shownImage && shownImage.path && !shownImage.removed
+      ? (comment: string) => {
+          const list = [...annotations, { quote: "", image: shownImage.path, comment }];
+          saveAnnotations(list);
+          setActive(list.length - 1);
+        }
+      : null;
+
+  // The URL of an image path of the shown document.
+  const imageUrl = (path: string) =>
+    content && isRelativePath(path) ? assetUrl(resolveRelative(content.filePath, path), content.version) : path;
 
   const onDeleteDocument = async (r: Document) => {
     try {
@@ -518,7 +541,7 @@ function AppShell() {
                 activeAnnotation={active}
                 onSelection={setTextSel}
                 onAnnotationClick={activate}
-                onImageClick={(src, alt) => setImage({ src, alt })}
+                onImageClick={(images, index) => setGallery({ images, index })}
                 articleRef={articleRef}
                 handleRef={viewerRef}
                 onRendered={() => setContentNonce((n) => n + 1)}
@@ -556,6 +579,7 @@ function AppShell() {
               onDraft={setDraft}
               onSave={onSaveDraft}
               onDelete={onDelete}
+              imageUrl={imageUrl}
             />
           </aside>
         </div>
@@ -573,7 +597,16 @@ function AppShell() {
           Annotate
         </Button>
       )}
-      {image && <ImageViewer src={image.src} alt={image.alt} onClose={() => setImage(null)} />}
+      {gallery && (
+        <ImageViewer
+          images={gallery.images}
+          index={gallery.index}
+          onIndex={(index) => setGallery({ ...gallery, index })}
+          comments={imageComments}
+          onComment={commentOnImage}
+          onClose={() => setGallery(null)}
+        />
+      )}
       <RulesEditor
         open={rulesOpen}
         onClose={() => setRulesOpen(false)}
