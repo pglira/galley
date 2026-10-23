@@ -597,6 +597,7 @@ function AppShell() {
                 onImageClick={(images, index) => setGallery({ images, index })}
                 onCheck={onCheck}
                 onAnswer={onAnswer}
+                keyNavigation={!gallery && !rulesOpen}
                 articleRef={articleRef}
                 handleRef={viewerRef}
                 onRendered={() => setContentNonce((n) => n + 1)}

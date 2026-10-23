@@ -10,6 +10,7 @@ import { assetUrl, openUrl } from "@/lib/tauri";
 import { diffHtml, REMOVED_SELECTOR } from "@/lib/diff";
 import { buildIndex, countQuote, findQuote, quoteContext, unwrapAll, wrapRange, type TextIndex } from "@/lib/textRange";
 import type { Annotation } from "@/lib/annotations";
+import { headingTarget, navAction, scrollDistance } from "@/lib/navigation";
 
 // The text of the document in a snapshot.
 export interface Content {
@@ -71,6 +72,8 @@ interface Props {
   onCheck: (choice: Choice) => void;
   // Receives the new text of a text field of the document and its question.
   onAnswer: (question: string, text: string) => void;
+  // True if the navigation keys move in the document.
+  keyNavigation: boolean;
   articleRef?: React.RefObject<HTMLElement | null>;
   handleRef?: React.Ref<ViewerHandle>;
   onRendered?: () => void;
@@ -83,6 +86,10 @@ const CHOICE_MARK = "galley-choice";
 const CHOICE_ITEM = "galley-choice-item";
 const ANSWER_SELECTOR = ".galley-answer > textarea";
 const MAX_QUESTION = 300;
+// Keys go to these elements, not to the navigation.
+const KEY_TARGETS = "input, textarea, select, [contenteditable=''], [contenteditable='true'], [role=menu], [role=listbox], [role=dialog]";
+// Space activates these elements.
+const SPACE_TARGETS = "button, a, [role=button], [role=checkbox]";
 
 // The text of an element without its nested lists and the removed text of the diff.
 function ownText(el: Element): string {
@@ -208,6 +215,7 @@ export function Viewer({
   onImageClick,
   onCheck,
   onAnswer,
+  keyNavigation,
   articleRef,
   handleRef,
   onRendered,
@@ -422,6 +430,41 @@ export function Viewer({
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // Move in the document with the navigation keys.
+  React.useEffect(() => {
+    if (!keyNavigation) return;
+    const onKey = (e: KeyboardEvent) => {
+      const action = navAction(e);
+      const scroller = scrollerRef.current;
+      const root = ref.current;
+      if (!action || e.defaultPrevented || !scroller || !root) return;
+      const target = e.target instanceof Element ? e.target : null;
+      if (target?.closest(KEY_TARGETS)) return;
+      if (e.key === " " && target?.closest(SPACE_TARGETS)) return;
+      e.preventDefault();
+      if (action === "top") {
+        scroller.scrollTop = 0;
+      } else if (action === "bottom") {
+        scroller.scrollTop = scroller.scrollHeight;
+      } else if (action === "nextHeading" || action === "prevHeading") {
+        const viewTop = scroller.getBoundingClientRect().top;
+        const headings = Array.from(root.querySelectorAll("h1, h2, h3, h4, h5, h6")).filter(
+          (h) => !h.closest(REMOVED_SELECTOR)
+        );
+        const tops = headings.map((h) => h.getBoundingClientRect().top - viewTop);
+        const i = headingTarget(tops, action === "nextHeading" ? 1 : -1);
+        if (i >= 0) scroller.scrollTop += tops[i];
+      } else {
+        const lineHeight = parseFloat(getComputedStyle(root).lineHeight) || 24;
+        scroller.scrollTop += scrollDistance(action, scroller.clientHeight, lineHeight);
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+    // `ref` is stable.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [keyNavigation]);
 
   React.useEffect(() => {
     const el = scrollerRef.current;
