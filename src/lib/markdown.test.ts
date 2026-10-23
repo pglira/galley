@@ -16,6 +16,12 @@ describe("renderMarkdown", () => {
     expect(renderMarkdown("- ![a](images/d.png)\n- b")).not.toContain("figcaption");
   });
 
+  it("renders an answer block as a text field with its hint", () => {
+    const html = renderMarkdown("How much?\n\n```answer\nA size in MB\n```\n\n```answer\n```");
+    expect(html).toMatch(/<div class="galley-answer"[^>]*><textarea rows="3" placeholder="A size in MB"><\/textarea><\/div>/);
+    expect(html).toContain('placeholder="Answer"');
+  });
+
   it("keeps image sources without a resolver", () => {
     expect(renderMarkdown("![a](images/a.png)")).toContain('src="images/a.png"');
   });

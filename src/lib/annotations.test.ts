@@ -20,6 +20,29 @@ describe("annotations", () => {
     expect(parseAnnotations(serializeAnnotations(list))).toEqual(list);
   });
 
+  it("round-trips checkboxes", () => {
+    const list = [
+      { quote: "Redis", checked: true, context: "Which cache should we use?", comment: "" },
+      { quote: "Keep the old API", checked: false, comment: "Drop it." },
+      { quote: "", comment: "Checked: [x] not a checkbox" },
+    ];
+    expect(parseAnnotations(serializeAnnotations(list))).toEqual(list);
+    expect(serializeAnnotations(list.slice(0, 1))).toBe(
+      "# Annotations\n\n## 1\n\nChecked: [x] Redis\n\nContext: Which cache should we use?\n"
+    );
+  });
+
+  it("round-trips answers in text fields", () => {
+    const list = [
+      { quote: "How much memory can the cache use?", answer: true, comment: "512 MB per node.\n\nNot more." },
+      { quote: "", comment: "Answer: not an answer" },
+    ];
+    expect(parseAnnotations(serializeAnnotations(list))).toEqual(list);
+    expect(serializeAnnotations(list.slice(0, 1))).toBe(
+      "# Annotations\n\n## 1\n\nAnswer: How much memory can the cache use?\n\n512 MB per node.\n\nNot more.\n"
+    );
+  });
+
   it("round-trips the context of a quote", () => {
     const list = [
       { quote: "Images", context: "4. Images: in this port or later?", comment: "now" },

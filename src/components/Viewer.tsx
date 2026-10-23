@@ -39,6 +39,16 @@ export interface DocImage {
   removed: boolean;
 }
 
+// A checkbox of a task list in the shown document.
+export interface Choice {
+  // The text of the option.
+  text: string;
+  // The text before the list, or the text of the parent item of a nested list.
+  question: string;
+  // The state of the checkbox in the document.
+  checked: boolean;
+}
+
 export interface ViewerHandle {
   // Exports the document as it shows (with the diff, if on) as a PDF on white
   // paper. Returns the path of the saved file, or null.
@@ -57,6 +67,10 @@ interface Props {
   onAnnotationClick: (index: number) => void;
   // Receives all images of the shown document and the index of the clicked one.
   onImageClick: (images: DocImage[], index: number) => void;
+  // Receives a click on a checkbox of the document.
+  onCheck: (choice: Choice) => void;
+  // Receives the new text of a text field of the document and its question.
+  onAnswer: (question: string, text: string) => void;
   articleRef?: React.RefObject<HTMLElement | null>;
   handleRef?: React.Ref<ViewerHandle>;
   onRendered?: () => void;
@@ -64,6 +78,61 @@ interface Props {
 
 const ANNOTATION_SELECTOR = "mark.galley-annotation";
 const IMAGE_MARK = "galley-annotated-image";
+const CHECKBOX_SELECTOR = "input.task-list-item-checkbox";
+const CHOICE_MARK = "galley-choice";
+const CHOICE_ITEM = "galley-choice-item";
+const ANSWER_SELECTOR = ".galley-answer > textarea";
+const MAX_QUESTION = 300;
+
+// The text of an element without its nested lists and the removed text of the diff.
+function ownText(el: Element): string {
+  const clone = el.cloneNode(true) as Element;
+  clone.querySelectorAll(`ul, ol, ${REMOVED_SELECTOR}`).forEach((e) => e.remove());
+  return (clone.textContent ?? "").replace(/\s+/g, " ").trim();
+}
+
+// The question of a block: the text of the previous block with text, or the
+// text of the parent list item.
+function questionOf(block: Element): string {
+  let before = block.previousElementSibling;
+  while (before && (before.matches(REMOVED_SELECTOR) || !ownText(before))) before = before.previousElementSibling;
+  if (!before && block.parentElement?.tagName === "LI") before = block.parentElement;
+  const question = before ? ownText(before) : "";
+  return question.length > MAX_QUESTION ? `${question.slice(0, MAX_QUESTION - 1)}…` : question;
+}
+
+function choiceOf(box: HTMLInputElement): Choice {
+  const item = box.closest("li");
+  const list = item?.parentElement;
+  return { text: item ? ownText(item) : "", question: list ? questionOf(list) : "", checked: box.hasAttribute("checked") };
+}
+
+// The checkboxes of the newer document, with their choices.
+function docChoices(root: HTMLElement): { el: HTMLInputElement; choice: Choice }[] {
+  return Array.from(root.querySelectorAll<HTMLInputElement>(CHECKBOX_SELECTOR))
+    .filter((el) => !el.closest(REMOVED_SELECTOR))
+    .map((el) => ({ el, choice: choiceOf(el) }));
+}
+
+// The text fields of the newer document, with their questions.
+function docAnswers(root: HTMLElement): { el: HTMLTextAreaElement; question: string }[] {
+  return Array.from(root.querySelectorAll<HTMLTextAreaElement>(ANSWER_SELECTOR))
+    .filter((el) => !el.closest(REMOVED_SELECTOR))
+    .map((el) => ({ el, question: questionOf(el.parentElement!) }));
+}
+
+// Returns the index of the answer annotation for a question, or -1.
+export function findAnswer(annotations: Annotation[], question: string): number {
+  return annotations.findIndex((a) => a.answer && a.quote === question);
+}
+
+// Returns the index of the first checkbox annotation with the option and the
+// question of a choice, or -1.
+export function findChoice(annotations: Annotation[], choice: Choice): number {
+  return annotations.findIndex(
+    (a) => a.checked !== undefined && a.quote === choice.text && (a.context ?? "") === choice.question
+  );
+}
 
 function docImages(root: HTMLElement): { el: HTMLImageElement; image: DocImage }[] {
   return Array.from(root.querySelectorAll("img")).map((el) => ({
@@ -135,6 +204,8 @@ export function Viewer({
   onSelection,
   onAnnotationClick,
   onImageClick,
+  onCheck,
+  onAnswer,
   articleRef,
   handleRef,
   onRendered,
@@ -147,10 +218,10 @@ export function Viewer({
   const [renderNonce, setRenderNonce] = React.useState(0);
 
   // Keep callbacks fresh without making them effect dependencies.
-  const callbacks = React.useRef({ onRendered, onSelection, onAnnotationClick, onImageClick });
+  const callbacks = React.useRef({ onRendered, onSelection, onAnnotationClick, onImageClick, onCheck, onAnswer });
   React.useEffect(() => {
-    callbacks.current = { onRendered, onSelection, onAnnotationClick, onImageClick };
-  }, [onRendered, onSelection, onAnnotationClick, onImageClick]);
+    callbacks.current = { onRendered, onSelection, onAnnotationClick, onImageClick, onCheck, onAnswer };
+  }, [onRendered, onSelection, onAnnotationClick, onImageClick, onCheck, onAnswer]);
 
   const html = React.useMemo(() => {
     const current = renderMarkdown(content.source, imageResolver(content));
@@ -215,6 +286,32 @@ export function Viewer({
     unwrapAll(root, ANNOTATION_SELECTOR);
     const images = docImages(root).filter((d) => !d.image.removed);
     images.forEach(({ el }) => el.classList.remove(IMAGE_MARK, "active"));
+    // Removed checkboxes and text fields of the diff are not part of the snapshot.
+    root.querySelectorAll<HTMLInputElement | HTMLTextAreaElement>(`${CHECKBOX_SELECTOR}, ${ANSWER_SELECTOR}`).forEach((el) => {
+      if (el.closest(REMOVED_SELECTOR)) el.disabled = true;
+    });
+    // Each text field shows its answer. A text field in use keeps its text.
+    for (const { el, question } of docAnswers(root)) {
+      const i = findAnswer(annotations, question);
+      if (el !== document.activeElement) el.value = i >= 0 ? annotations[i].comment : "";
+      el.parentElement!.classList.toggle("active", i >= 0 && i === activeAnnotation);
+      if (i >= 0) el.parentElement!.setAttribute("data-annotation", String(i));
+      else el.parentElement!.removeAttribute("data-annotation");
+    }
+    // Each checkbox shows the state that the reviewer set, else the state in the document.
+    for (const { el, choice } of docChoices(root)) {
+      const item = el.closest("li");
+      el.classList.remove(CHOICE_MARK, "active");
+      item?.classList.remove(CHOICE_ITEM);
+      item?.removeAttribute("data-annotation");
+      const i = findChoice(annotations, choice);
+      el.checked = i >= 0 ? annotations[i].checked! : choice.checked;
+      if (i < 0) continue;
+      el.classList.add(CHOICE_MARK);
+      if (i === activeAnnotation) el.classList.add("active");
+      item?.classList.add(CHOICE_ITEM);
+      item?.setAttribute("data-annotation", String(i));
+    }
     annotations.forEach((a, i) => {
       if (a.image) {
         // The first image with the path carries the mark.
@@ -224,7 +321,7 @@ export function Viewer({
         if (i === activeAnnotation) el.classList.add("active");
         return;
       }
-      if (!a.quote) return;
+      if (!a.quote || a.checked !== undefined || a.answer) return;
       const index = buildIndex(root, { dropWhitespace: true, skip: `${REMOVED_SELECTOR}, svg` });
       const range = findQuote(index, a.quote, a.context);
       if (!range) return;
@@ -242,7 +339,8 @@ export function Viewer({
   React.useEffect(() => {
     const root = ref.current;
     if (!root) return;
-    const onMouseUp = () => {
+    const onMouseUp = (e: MouseEvent) => {
+      if ((e.target as Element).closest?.("textarea")) return;
       // Read the selection after the browser updates it.
       setTimeout(() => {
         const sel = window.getSelection();
@@ -268,6 +366,14 @@ export function Viewer({
     };
     const onClick = (e: MouseEvent) => {
       const target = e.target as Element;
+      if (target.matches(CHECKBOX_SELECTOR)) {
+        // The annotations set the state of the checkbox.
+        e.preventDefault();
+        // The browser resets the checkbox after the click, so the new state applies later.
+        const choice = choiceOf(target as HTMLInputElement);
+        if (!target.closest(REMOVED_SELECTOR)) setTimeout(() => callbacks.current.onCheck(choice), 0);
+        return;
+      }
       if (target.tagName === "IMG" && !window.getSelection()?.toString()) {
         e.preventDefault();
         const images = docImages(root);
@@ -289,14 +395,28 @@ export function Viewer({
         }
         return;
       }
-      const mark = (e.target as Element).closest?.(ANNOTATION_SELECTOR) as HTMLElement | null;
+      const mark = (e.target as Element).closest?.(`${ANNOTATION_SELECTOR}, li.${CHOICE_ITEM}`) as HTMLElement | null;
       if (mark?.dataset.annotation) callbacks.current.onAnnotationClick(Number(mark.dataset.annotation));
+    };
+    const onChange = (e: Event) => {
+      const el = e.target as HTMLTextAreaElement;
+      if (!el.matches(ANSWER_SELECTOR) || el.closest(REMOVED_SELECTOR)) return;
+      callbacks.current.onAnswer(questionOf(el.parentElement!), el.value);
+    };
+    // Ctrl+Enter in a text field saves the answer.
+    const onKeyDown = (e: KeyboardEvent) => {
+      const el = e.target as HTMLElement;
+      if (e.key === "Enter" && (e.ctrlKey || e.metaKey) && el.matches(ANSWER_SELECTOR)) el.blur();
     };
     root.addEventListener("mouseup", onMouseUp);
     root.addEventListener("click", onClick);
+    root.addEventListener("change", onChange);
+    root.addEventListener("keydown", onKeyDown);
     return () => {
       root.removeEventListener("mouseup", onMouseUp);
       root.removeEventListener("click", onClick);
+      root.removeEventListener("change", onChange);
+      root.removeEventListener("keydown", onKeyDown);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -314,7 +434,11 @@ export function Viewer({
   React.useEffect(() => {
     const root = ref.current;
     if (!root || !copyAsMarkdown || compare) return;
-    const onCopy = (e: ClipboardEvent) => handleCopyAsMarkdown(e, root as HTMLElement, content.source);
+    const onCopy = (e: ClipboardEvent) => {
+      // Text fields copy their own text.
+      if ((e.target as Element).closest?.("textarea")) return;
+      handleCopyAsMarkdown(e, root as HTMLElement, content.source);
+    };
     root.addEventListener("copy", onCopy);
     return () => root.removeEventListener("copy", onCopy);
     // eslint-disable-next-line react-hooks/exhaustive-deps

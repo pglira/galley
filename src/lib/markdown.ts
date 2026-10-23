@@ -83,6 +83,8 @@ md.core.ruler.push("source_map_attrs", (state) => {
 });
 
 // Mark mermaid blocks for client-side rendering rather than syntax highlighting.
+// An `answer` block is a text field for the reviewer. Its content is the hint
+// that the empty text field shows.
 const defaultFence = md.renderer.rules.fence!;
 md.renderer.rules.fence = (tokens, idx, options, env, self) => {
   const token = tokens[idx];
@@ -92,6 +94,10 @@ md.renderer.rules.fence = (tokens, idx, options, env, self) => {
     const code = token.content;
     const escaped = code.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
     return `<pre class="mermaid-pending"${sourceMapAttr}><code>${escaped}</code></pre>`;
+  }
+  if (info === "answer") {
+    const hint = md.utils.escapeHtml(token.content.replace(/\s+/g, " ").trim() || "Answer");
+    return `<div class="galley-answer"${sourceMapAttr}><textarea rows="3" placeholder="${hint}"></textarea></div>\n`;
   }
   let html = defaultFence(tokens, idx, options, env, self);
   if (sourceMapAttr) {

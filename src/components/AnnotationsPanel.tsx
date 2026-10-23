@@ -10,6 +10,8 @@ export interface Draft {
   quote: string;
   context?: string;
   image?: string;
+  checked?: boolean;
+  answer?: boolean;
   comment: string;
 }
 
@@ -45,6 +47,26 @@ function ImageRef({ path, url }: { path: string; url: string }) {
   );
 }
 
+function ChoiceRef({ text, question, checked }: { text: string; question?: string; checked: boolean }) {
+  return (
+    <div className="mb-1.5 border-l-2 border-primary/60 pl-2 text-xs text-muted-foreground">
+      {question && <p className="line-clamp-2 italic">{question}</p>}
+      <p className="flex items-start gap-1.5">
+        <input type="checkbox" checked={checked} readOnly tabIndex={-1} className="pointer-events-none mt-0.5 accent-primary" />
+        <span className="line-clamp-3">{text}</span>
+      </p>
+    </div>
+  );
+}
+
+function QuestionRef({ question }: { question: string }) {
+  return (
+    <div className="mb-1.5 border-l-2 border-primary/60 pl-2 text-xs text-muted-foreground">
+      <p className="line-clamp-3 italic">{question}</p>
+    </div>
+  );
+}
+
 function Editor({
   draft,
   onDraft,
@@ -53,10 +75,16 @@ function Editor({
 }: Pick<Props, "onDraft" | "onSave" | "imageUrl"> & { draft: Draft }) {
   const ref = useRef<HTMLTextAreaElement>(null);
   useEffect(() => ref.current?.focus(), []);
-  const save = () => draft.comment.trim() && onSave(draft);
+  // A checkbox annotation can have no comment.
+  const canSave = draft.checked !== undefined || !!draft.comment.trim();
+  const save = () => canSave && onSave(draft);
   return (
     <div className="rounded-md border border-primary/60 bg-card p-2">
-      {draft.image ? (
+      {draft.answer ? (
+        <QuestionRef question={draft.quote} />
+      ) : draft.checked !== undefined ? (
+        <ChoiceRef text={draft.quote} question={draft.context} checked={draft.checked} />
+      ) : draft.image ? (
         <ImageRef path={draft.image} url={imageUrl(draft.image)} />
       ) : draft.quote ? (
         <Quote text={draft.quote} />
@@ -66,7 +94,7 @@ function Editor({
       <textarea
         ref={ref}
         className="min-h-20 w-full resize-y rounded border bg-background p-1.5 text-sm outline-none focus:border-ring"
-        placeholder="Comment"
+        placeholder={draft.answer ? "Answer" : "Comment"}
         value={draft.comment}
         onChange={(e) => onDraft({ ...draft, comment: e.target.value })}
         onKeyDown={(e) => {
@@ -78,7 +106,7 @@ function Editor({
         <Button size="xs" variant="ghost" onClick={() => onDraft(null)}>
           Cancel
         </Button>
-        <Button size="xs" disabled={!draft.comment.trim()} onClick={save} title="Save (Ctrl+Enter)">
+        <Button size="xs" disabled={!canSave} onClick={save} title="Save (Ctrl+Enter)">
           Save
         </Button>
       </div>
@@ -116,7 +144,7 @@ export function AnnotationsPanel({
       </div>
       <div className="min-h-0 flex-1 space-y-2 overflow-auto p-2">
         {enabled && annotations.length === 0 && !draft && (
-          <p className="p-1 text-xs text-muted-foreground">Select text in the document to annotate it (Ctrl M). Open an image to comment on it.</p>
+          <p className="p-1 text-xs text-muted-foreground">Select text in the document to annotate it (Ctrl M). Open an image to comment on it. Click a checkbox or fill a text field to answer a question.</p>
         )}
         {annotations.map((a, i) =>
           draft?.index === i ? (
@@ -140,7 +168,7 @@ export function AnnotationsPanel({
                     title="Edit"
                     onClick={(e) => {
                       e.stopPropagation();
-                      onDraft({ index: i, quote: a.quote, context: a.context, image: a.image, comment: a.comment });
+                      onDraft({ index: i, quote: a.quote, context: a.context, image: a.image, checked: a.checked, answer: a.answer, comment: a.comment });
                     }}
                   >
                     <Pencil />
@@ -158,8 +186,16 @@ export function AnnotationsPanel({
                   </Button>
                 </div>
               </div>
-              {a.image ? <ImageRef path={a.image} url={imageUrl(a.image)} /> : a.quote && <Quote text={a.quote} />}
-              <p className="text-sm whitespace-pre-wrap">{a.comment}</p>
+              {a.answer ? (
+                <QuestionRef question={a.quote} />
+              ) : a.checked !== undefined ? (
+                <ChoiceRef text={a.quote} question={a.context} checked={a.checked} />
+              ) : a.image ? (
+                <ImageRef path={a.image} url={imageUrl(a.image)} />
+              ) : (
+                a.quote && <Quote text={a.quote} />
+              )}
+              {a.comment && <p className="text-sm whitespace-pre-wrap">{a.comment}</p>}
             </div>
           )
         )}

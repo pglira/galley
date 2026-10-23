@@ -48,10 +48,22 @@
 
 .markdown-body .task-list-item { list-style: none; margin-left: -1.25rem; }
 .markdown-body .task-list-item input[type="checkbox"] {
-  margin-right: calc(0.5 * var(--doc-rem));
-  vertical-align: middle;
-  accent-color: var(--primary);
+  appearance: none;
+  width: calc(1 * var(--doc-rem));
+  height: calc(1 * var(--doc-rem));
+  margin: 0 calc(0.5 * var(--doc-rem)) 0 0;
+  vertical-align: -0.15em;
+  border: 1.5px solid color-mix(in oklch, currentColor 55%, transparent);
+  border-radius: 3px;
+  background: transparent center / 80% no-repeat;
+  cursor: pointer;
 }
+.markdown-body .task-list-item input[type="checkbox"]:checked {
+  border-color: var(--primary);
+  background-color: var(--primary);
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='M3 8.5l3 3 7-7' fill='none' stroke='white' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+}
+.markdown-body .task-list-item input[type="checkbox"]:disabled { cursor: default; opacity: 0.6; }
 
 .markdown-body blockquote {
   @apply text-muted-foreground;
@@ -233,6 +245,36 @@
 .markdown-body img.galley-annotated-image.active {
   box-shadow: 0 0 0 5px var(--primary);
 }
+/* A checkbox that the reviewer set. */
+.markdown-body input.galley-choice {
+  outline: 2px solid color-mix(in oklch, var(--primary) 60%, transparent);
+  outline-offset: 2px;
+}
+.markdown-body input.galley-choice.active {
+  outline: 3px solid var(--primary);
+}
+
+/* A text field for the answer of the reviewer. */
+.markdown-body .galley-answer { margin: calc(0.75 * var(--doc-rem)) 0; }
+.markdown-body .galley-answer textarea {
+  display: block;
+  width: 100%;
+  resize: vertical;
+  padding: calc(0.5 * var(--doc-rem)) calc(0.75 * var(--doc-rem));
+  font: inherit;
+  color: inherit;
+  background: transparent;
+  border: 1.5px solid color-mix(in oklch, currentColor 35%, transparent);
+  border-radius: 6px;
+  outline: none;
+}
+.markdown-body .galley-answer textarea:focus { border-color: var(--primary); }
+.markdown-body .galley-answer textarea::placeholder { color: color-mix(in oklch, currentColor 45%, transparent); }
+.markdown-body .galley-answer[data-annotation] textarea {
+  border-color: color-mix(in oklch, var(--primary) 60%, transparent);
+}
+.markdown-body .galley-answer.active textarea { border-color: var(--primary); border-width: 2px; }
+.markdown-body .galley-answer textarea:disabled { opacity: 0.6; }
 
 /* The paper: the page that holds the rendered document. */
 .paper {

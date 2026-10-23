@@ -8,7 +8,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { Button } from "@/components/ui/button";
 import { DocumentTree, documentLabel, type Selection } from "@/components/DocumentTree";
 import { Toolbar } from "@/components/Toolbar";
-import { Viewer, type Content, type DocImage, type TextSelection, type ViewerHandle } from "@/components/Viewer";
+import { Viewer, findAnswer, findChoice, type Choice, type Content, type DocImage, type TextSelection, type ViewerHandle } from "@/components/Viewer";
 import { DocSearch } from "@/components/DocSearch";
 import { AnnotationsPanel, type Draft } from "@/components/AnnotationsPanel";
 import { ImageViewer } from "@/components/ImageViewer";
@@ -261,6 +261,8 @@ function AppShell() {
     const entry: Annotation = { quote: d.quote, comment: d.comment.trim() };
     if (d.context) entry.context = d.context;
     if (d.image) entry.image = d.image;
+    if (d.checked !== undefined) entry.checked = d.checked;
+    if (d.answer) entry.answer = true;
     const list = d.index == null ? [...annotations, entry] : annotations.map((a, i) => (i === d.index ? entry : a));
     saveAnnotations(list);
     setActive(d.index ?? list.length - 1);
@@ -272,10 +274,50 @@ function AppShell() {
     setActive(null);
   };
 
+  // A click on a checkbox inverts its shown state. A checkbox annotation
+  // without a comment that comes back to the state in the document is removed.
+  const onCheck = (choice: Choice) => {
+    if (!snapshot) return;
+    const i = findChoice(annotations, choice);
+    const checked = !(i >= 0 ? annotations[i].checked : choice.checked);
+    if (i >= 0 && checked === choice.checked && !annotations[i].comment) {
+      saveAnnotations(annotations.filter((_, j) => j !== i));
+      setActive(null);
+      return;
+    }
+    const entry: Annotation = { quote: choice.text, checked, comment: i >= 0 ? annotations[i].comment : "" };
+    if (choice.question) entry.context = choice.question;
+    const list = i >= 0 ? annotations.map((a, j) => (j === i ? entry : a)) : [...annotations, entry];
+    saveAnnotations(list);
+    setActive(i >= 0 ? i : list.length - 1);
+  };
+
+  // The text of a text field is the answer to its question. An empty text
+  // removes the answer.
+  const onAnswer = (question: string, text: string) => {
+    if (!snapshot) return;
+    const i = findAnswer(annotations, question);
+    const comment = text.trim();
+    if (i >= 0 && annotations[i].comment === comment) return;
+    if (!comment) {
+      if (i >= 0) saveAnnotations(annotations.filter((_, j) => j !== i));
+      setActive(null);
+      return;
+    }
+    const entry: Annotation = { quote: question, answer: true, comment };
+    const list = i >= 0 ? annotations.map((a, j) => (j === i ? entry : a)) : [...annotations, entry];
+    saveAnnotations(list);
+    setActive(i >= 0 ? i : list.length - 1);
+  };
+
   const activate = (index: number) => {
     setActive(index);
     const image = annotations[index]?.image;
-    const target = image
+    const target = annotations[index]?.checked !== undefined
+      ? articleRef.current?.querySelector(`li.galley-choice-item[data-annotation="${index}"]`)
+      : annotations[index]?.answer
+      ? articleRef.current?.querySelector(`.galley-answer[data-annotation="${index}"]`)
+      : image
       ? Array.from(articleRef.current?.querySelectorAll("img.galley-annotated-image") ?? []).find(
           (el) => el.getAttribute("data-src") === image
         )
@@ -553,6 +595,8 @@ function AppShell() {
                 onSelection={setTextSel}
                 onAnnotationClick={activate}
                 onImageClick={(images, index) => setGallery({ images, index })}
+                onCheck={onCheck}
+                onAnswer={onAnswer}
                 articleRef={articleRef}
                 handleRef={viewerRef}
                 onRendered={() => setContentNonce((n) => n + 1)}
