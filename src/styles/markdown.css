@@ -254,6 +254,29 @@
   outline: 3px solid var(--primary);
 }
 
+/* A question block: a question and the fields for its answer. */
+.markdown-body .galley-question {
+  margin: calc(1 * var(--doc-rem)) 0;
+  padding: calc(0.75 * var(--doc-rem)) calc(1 * var(--doc-rem));
+  border: 1px solid color-mix(in oklch, var(--primary) 45%, transparent);
+  border-left-width: 4px;
+  border-radius: 6px;
+  background: color-mix(in oklch, var(--primary) 6%, transparent);
+  break-inside: avoid;
+}
+.markdown-body .galley-question::before {
+  content: "Question";
+  display: block;
+  margin-bottom: calc(0.25 * var(--doc-rem));
+  font-size: 0.75em;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--primary);
+}
+.markdown-body .galley-question > :first-child { margin-top: 0; }
+.markdown-body .galley-question > :last-child { margin-bottom: 0; }
+
 /* A text field for the answer of the reviewer. */
 .markdown-body .galley-answer { margin: calc(0.75 * var(--doc-rem)) 0; }
 .markdown-body .galley-answer textarea {

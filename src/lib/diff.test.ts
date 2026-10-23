@@ -1,7 +1,17 @@
 import { describe, it, expect } from "vitest";
 import { diffHtml } from "./diff";
+import { renderMarkdown } from "./markdown";
 
 describe("diffHtml", () => {
+  it("diffs the options inside a question block", () => {
+    const md = (options: string[]) => `Which cache?\n\n${options.map((o) => `- [ ] ${o}`).join("\n")}\n`;
+    const out = diffHtml(renderMarkdown(md(["Redis", "Memcached", "LRU"])), renderMarkdown(md(["Redis", "Memcached"])));
+    expect(out.match(/galley-question/g)).toHaveLength(1);
+    expect(out).toMatch(/<p[^>]*>Which cache\?<\/p>/);
+    expect(out).toMatch(/<li class="task-list-item enabled diff-added"[^>]*>.*LRU<\/li>/);
+    expect(out).not.toMatch(/diff-removed/);
+  });
+
   it("leaves equal documents unchanged", () => {
     const html = "<h1>T</h1><p>a b</p>";
     expect(diffHtml(html, html)).toBe(html);

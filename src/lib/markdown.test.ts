@@ -22,6 +22,28 @@ describe("renderMarkdown", () => {
     expect(html).toContain('placeholder="Answer"');
   });
 
+  it("groups a question and its fields in a question block", () => {
+    const html = renderMarkdown(
+      "Intro.\n\nWhich cache?\n\n- [ ] Redis\n- [ ] Memcached\n\n```answer\n```\n\nOther text.\n\n- plain list"
+    );
+    expect(html).toMatch(
+      /<p[^>]*>Intro.<\/p>\n<div class="galley-question">\n<p[^>]*>Which cache\?<\/p>\n<ul class="contains-task-list"[\s\S]*<\/ul>\n<div class="galley-answer"[\s\S]*?<\/div>\n<\/div>\n<p[^>]*>Other text.<\/p>/
+    );
+    expect(html.match(/galley-question/g)).toHaveLength(1);
+  });
+
+  it("does not take the text of a list item as a question", () => {
+    const html = renderMarkdown("- Statistics\n\n  - [ ] Hit rate\n\n- Size\n\n  ```answer\n  ```");
+    expect(html.match(/galley-question/g)).toHaveLength(2);
+    expect(html).toMatch(/<p[^>]*>Statistics<\/p>\n<div class="galley-question">\n<ul class="contains-task-list"/);
+    expect(html).toMatch(/<p[^>]*>Size<\/p>\n<div class="galley-question">\n<div class="galley-answer"/);
+  });
+
+  it("keeps fields inside a task list in its question block", () => {
+    const html = renderMarkdown("Which?\n\n- [ ] Statistics\n\n  - [ ] Hit rate\n\n- [ ] Other\n\n  ```answer\n  ```");
+    expect(html.match(/galley-question/g)).toHaveLength(1);
+  });
+
   it("keeps image sources without a resolver", () => {
     expect(renderMarkdown("![a](images/a.png)")).toContain('src="images/a.png"');
   });

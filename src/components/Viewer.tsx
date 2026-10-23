@@ -92,10 +92,12 @@ function ownText(el: Element): string {
 }
 
 // The question of a block: the text of the previous block with text, or the
-// text of the parent list item.
+// text of the parent list item. The search continues before a question block
+// that starts with the block.
 function questionOf(block: Element): string {
   let before = block.previousElementSibling;
   while (before && (before.matches(REMOVED_SELECTOR) || !ownText(before))) before = before.previousElementSibling;
+  if (!before && block.parentElement?.matches(".galley-question")) return questionOf(block.parentElement);
   if (!before && block.parentElement?.tagName === "LI") before = block.parentElement;
   const question = before ? ownText(before) : "";
   return question.length > MAX_QUESTION ? `${question.slice(0, MAX_QUESTION - 1)}…` : question;

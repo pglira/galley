@@ -1,4 +1,5 @@
 import MarkdownIt from "markdown-it";
+import type Token from "markdown-it/lib/token.mjs";
 import anchor from "markdown-it-anchor";
 import footnote from "markdown-it-footnote";
 import taskLists from "markdown-it-task-lists";
@@ -65,6 +66,56 @@ md.renderer.rules.image = (tokens, idx, options, env, self) => {
   if (!token.meta?.figure) return img;
   return `${img}<figcaption>${self.renderInline(token.children ?? [], options, env)}</figcaption>`;
 };
+
+// A question block groups a question with the fields for its answer: task
+// lists and `answer` blocks. The paragraph before the fields is the question.
+// The paragraph that starts a list item is the text of the item, not a
+// question. Fields inside a question block belong to that block.
+function isField(token: Token): boolean {
+  if (token.type === "fence") return token.info.trim() === "answer";
+  return (
+    (token.type === "bullet_list_open" || token.type === "ordered_list_open") &&
+    (token.attrGet("class") ?? "").split(" ").includes("contains-task-list")
+  );
+}
+
+// Returns the index after the field that starts at `i`.
+function fieldEnd(tokens: Token[], i: number): number {
+  if (tokens[i].nesting === 0) return i + 1;
+  let depth = 0;
+  for (let j = i; j < tokens.length; j++) {
+    depth += tokens[j].nesting;
+    if (depth === 0) return j + 1;
+  }
+  return tokens.length;
+}
+
+md.core.ruler.push("questions", (state) => {
+  const tokens = state.tokens;
+  for (let i = 0; i < tokens.length; i++) {
+    if (!isField(tokens[i])) continue;
+    let start = i;
+    const before = tokens[i - 3];
+    if (
+      tokens[i - 1]?.type === "paragraph_close" &&
+      before?.type === "paragraph_open" &&
+      before.level === tokens[i].level &&
+      tokens[i - 4]?.type !== "list_item_open"
+    ) {
+      start = i - 3;
+    }
+    let end = fieldEnd(tokens, i);
+    while (end < tokens.length && isField(tokens[end])) end = fieldEnd(tokens, end);
+    const open = new state.Token("question_open", "div", 1);
+    open.block = true;
+    open.attrSet("class", "galley-question");
+    const close = new state.Token("question_close", "div", -1);
+    close.block = true;
+    tokens.splice(end, 0, close);
+    tokens.splice(start, 0, open);
+    i = end + 1;
+  }
+});
 
 // Inject data-source-map attributes on block-level tokens so the copy handler
 // can map rendered DOM selections back to original source lines.
