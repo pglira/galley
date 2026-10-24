@@ -52,7 +52,7 @@ galley path/to/galley-directory
 - Click an image to open it in an overlay. Zoom with the mouse wheel or `+` and `-`, pan with drag. `0` fits the image, `1` shows it at 100 %, `Esc` closes.
 - Move in the document with the keys: `j` and `k` or the arrow keys (two lines), `d` and `u` (half a page), `Space`, `Shift Space`, `b`, `Page Down` and `Page Up` (a page), `g` or `Home` (top), `G` or `End` (bottom), `]` and `[` (next and previous heading).
 - Change the text size of the document with `Ctrl +`, `Ctrl -` and `Ctrl 0` (reset), or with `Ctrl` and the mouse wheel. The images scale with the text.
-- Set the page width and the paper color (the page of the document) in the settings menu. Galley is always dark.
+- Set the page width, the paper color (the page of the document) and the font of the document in the settings menu. Galley is always dark.
 - Search all documents and annotations with the field above the document list (`Ctrl Shift F`). Click a hit to open its snapshot at the match. `Ctrl F` finds text in the open document.
 - Edit `GALLEY.md` with the scroll icon above the document list. **Revert to default** replaces the text with the default `GALLEY.md` of the installed Galley version. Save with `Ctrl Enter`.
 - Annotate the selected text with the "Annotate" button or `Ctrl M`. Add a general comment with the plus icon in the annotations panel or `Ctrl Shift M`. Save a comment with `Ctrl Enter`, cancel with `Esc`.

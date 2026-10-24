@@ -189,6 +189,7 @@ pub struct PreferencesPayload {
     pub sidebar_right_width: Option<u32>,
     pub contents_height: Option<u32>,
     pub copy_as_markdown: Option<bool>,
+    pub doc_font: Option<String>,
 }
 
 #[tauri::command]
@@ -200,6 +201,7 @@ pub fn save_preferences(prefs: PreferencesPayload) -> AppResult<()> {
         s.sidebar_right_width = prefs.sidebar_right_width;
         s.contents_height = prefs.contents_height;
         s.copy_as_markdown = prefs.copy_as_markdown;
+        s.doc_font = prefs.doc_font;
     })
 }
 
@@ -213,5 +215,6 @@ pub fn load_preferences() -> PreferencesPayload {
         sidebar_right_width: s.sidebar_right_width,
         contents_height: s.contents_height,
         copy_as_markdown: s.copy_as_markdown,
+        doc_font: s.doc_font,
     }
 }

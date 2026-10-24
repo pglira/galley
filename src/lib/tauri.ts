@@ -40,6 +40,7 @@ export interface PreferencesPayload {
   sidebar_right_width: number | null;
   contents_height: number | null;
   copy_as_markdown: boolean | null;
+  doc_font: string | null;
 }
 
 export const tauri = {

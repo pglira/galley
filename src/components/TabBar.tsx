@@ -26,7 +26,7 @@ export function TabBar({ tabs, active, onActivate, onClose, onNew, onRename }: P
   const [editing, setEditing] = useState<number | null>(null);
 
   return (
-    <div className="flex h-8 shrink-0 items-stretch border-b bg-sidebar text-sidebar-foreground" role="tablist">
+    <div className="flex h-9 shrink-0 items-stretch border-b bg-sidebar text-sidebar-foreground" role="tablist">
       <div className="flex min-w-0 items-stretch overflow-x-auto">
         {tabs.map((t) => (
           <div
@@ -35,7 +35,7 @@ export function TabBar({ tabs, active, onActivate, onClose, onNew, onRename }: P
             aria-selected={t.id === active}
             title={t.path ? `${t.path}\nDouble-click to rename` : undefined}
             className={cn(
-              "group flex max-w-56 min-w-0 shrink-0 cursor-default items-center gap-1 border-r border-b-2 pr-1 pl-3 text-xs select-none",
+              "group flex max-w-56 min-w-0 shrink-0 cursor-default items-center gap-1.5 border-r border-b-2 pr-1 pl-3 text-[13px] select-none",
               t.id === active
                 ? "border-b-primary bg-background text-foreground"
                 : "border-b-transparent text-muted-foreground hover:bg-muted/50"
@@ -64,7 +64,7 @@ export function TabBar({ tabs, active, onActivate, onClose, onNew, onRename }: P
               variant="ghost"
               size="icon-xs"
               className={cn(
-                "size-5 shrink-0",
+                "size-6 shrink-0",
                 t.id === active ? "" : "opacity-0 group-hover:opacity-100 focus-visible:opacity-100"
               )}
               title="Close the tab (Ctrl W)"
@@ -98,7 +98,7 @@ function RenameField({ label, onDone }: { label: string; onDone: (name: string |
   return (
     <input
       autoFocus
-      className="w-32 min-w-0 rounded-sm border bg-background px-1 text-xs outline-none"
+      className="w-36 min-w-0 border bg-background px-1 text-[13px] outline-none"
       value={text}
       onChange={(e) => setText(e.target.value)}
       onFocus={(e) => e.target.select()}

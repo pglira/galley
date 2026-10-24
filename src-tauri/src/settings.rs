@@ -21,6 +21,9 @@ pub struct Settings {
     pub contents_height: Option<u32>,
     #[serde(default)]
     pub copy_as_markdown: Option<bool>,
+    /// The id of the font of the rendered document.
+    #[serde(default)]
+    pub doc_font: Option<String>,
     /// Names that the user gives to the tabs of galley directories, by path.
     #[serde(default)]
     pub tab_names: BTreeMap<String, String>,

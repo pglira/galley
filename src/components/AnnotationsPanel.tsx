@@ -39,7 +39,7 @@ function Quote({ text }: { text: string }) {
 function ImageRef({ path, url }: { path: string; url: string }) {
   return (
     <div className="mb-1.5 flex items-center gap-2 border-l-2 border-primary/60 pl-2">
-      <img src={url} alt="" className="h-10 max-w-16 rounded object-contain" />
+      <img src={url} alt="" className="h-10 max-w-16 object-contain" />
       <span className="truncate text-xs text-muted-foreground" title={path}>
         {path}
       </span>
@@ -52,7 +52,7 @@ function ChoiceRef({ text, question, checked }: { text: string; question?: strin
     <div className="mb-1.5 border-l-2 border-primary/60 pl-2 text-xs text-muted-foreground">
       {question && <p className="line-clamp-2 italic">{question}</p>}
       <p className="flex items-start gap-1.5">
-        <input type="checkbox" checked={checked} readOnly tabIndex={-1} className="pointer-events-none mt-0.5 accent-primary" />
+        <input type="checkbox" checked={checked} readOnly tabIndex={-1} className="checkbox pointer-events-none mt-0.5" />
         <span className="line-clamp-3">{text}</span>
       </p>
     </div>
@@ -79,7 +79,7 @@ function Editor({
   const canSave = draft.checked !== undefined || !!draft.comment.trim();
   const save = () => canSave && onSave(draft);
   return (
-    <div className="rounded-md border border-primary/60 bg-card p-2">
+    <div className="border border-primary/60 bg-card p-2">
       {draft.answer ? (
         <QuestionRef question={draft.quote} />
       ) : draft.checked !== undefined ? (
@@ -93,7 +93,7 @@ function Editor({
       )}
       <textarea
         ref={ref}
-        className="min-h-20 w-full resize-y rounded border bg-background p-1.5 text-sm outline-none focus:border-ring"
+        className="min-h-20 w-full resize-y border bg-background p-1.5 text-sm outline-none focus:border-ring"
         placeholder={draft.answer ? "Answer" : "Comment"}
         value={draft.comment}
         onChange={(e) => onDraft({ ...draft, comment: e.target.value })}
@@ -154,7 +154,7 @@ export function AnnotationsPanel({
               key={i}
               ref={i === active ? activeRef : undefined}
               className={cn(
-                "group cursor-pointer rounded-md border p-2 hover:bg-muted/50",
+                "group cursor-pointer border p-2 hover:bg-muted/50",
                 i === active && "border-primary/60 bg-muted/50"
               )}
               onClick={() => onActivate(i)}

@@ -121,7 +121,7 @@ export function DocumentTree({
       {search}
 
       {galley && !galley.has_rules && (
-        <div className="m-2 rounded-md border bg-muted/50 p-2 text-xs">
+        <div className="m-2 border bg-muted/50 p-2 text-xs">
           <p className="mb-2">This directory has no GALLEY.md with the rules for the agent.</p>
           <Button size="xs" variant="outline" onClick={onInitRules}>
             Create GALLEY.md

@@ -56,7 +56,7 @@ export function DocSearch({ open, onClose, query, onQueryChange, targetLine, con
   if (!open) return null;
 
   return (
-    <div className="absolute right-4 top-2 z-40 flex items-center gap-1 rounded-md border bg-popover px-2 py-1 shadow-md">
+    <div className="absolute right-4 top-2 z-40 flex items-center gap-1 border bg-popover px-2 py-1 shadow-md">
       <input
         ref={inputRef}
         value={query}

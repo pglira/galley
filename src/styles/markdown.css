@@ -2,8 +2,9 @@
 
 .markdown-body {
   @apply text-foreground;
+  font-family: var(--font-doc);
   line-height: 1.85;
-  font-size: calc(0.9375 * var(--doc-rem));
+  font-size: calc(0.9375 * var(--doc-font-scale, 1) * var(--doc-rem));
   padding: calc(2 * var(--doc-rem)) calc(2.5 * var(--doc-rem)) calc(6 * var(--doc-rem));
 }
 
@@ -54,7 +55,6 @@
   margin: 0 calc(0.5 * var(--doc-rem)) 0 0;
   vertical-align: -0.15em;
   border: 1.5px solid color-mix(in oklch, currentColor 55%, transparent);
-  border-radius: 3px;
   background: transparent center / 80% no-repeat;
   cursor: pointer;
 }
@@ -95,8 +95,8 @@
 .markdown-body tr:nth-child(2n) td { background: color-mix(in oklch, var(--muted) 40%, transparent); }
 
 .markdown-body code:not(pre code) {
-  @apply bg-muted text-foreground rounded;
-  font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+  @apply bg-muted text-foreground;
+  font-family: var(--font-mono);
   font-size: 0.88em;
   padding: 0.12em 0.35em;
 }
@@ -104,7 +104,6 @@
 .markdown-body pre {
   position: relative;
   margin: calc(1 * var(--doc-rem)) 0;
-  border-radius: calc(0.5 * var(--doc-rem));
   background: var(--muted);
   border: 1px solid var(--border);
   overflow: hidden;
@@ -113,7 +112,7 @@
 .markdown-body pre.shiki {
   display: block;
   padding: calc(1 * var(--doc-rem)) calc(1.1 * var(--doc-rem));
-  font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+  font-family: var(--font-mono);
   font-size: 0.86em;
   line-height: 1.55;
   overflow-x: auto;
@@ -131,7 +130,6 @@
   right: calc(0.4 * var(--doc-rem));
   font-size: calc(0.72 * var(--doc-rem));
   padding: calc(0.2 * var(--doc-rem)) calc(0.55 * var(--doc-rem));
-  border-radius: calc(0.35 * var(--doc-rem));
   background: color-mix(in oklch, var(--background) 75%, transparent);
   border: 1px solid var(--border);
   color: var(--muted-foreground);
@@ -142,7 +140,7 @@
 .markdown-body pre:hover .copy-code-btn { opacity: 1; }
 .markdown-body .copy-code-btn:hover { color: var(--foreground); }
 
-.markdown-body img { max-width: 100%; border-radius: calc(0.4 * var(--doc-rem)); }
+.markdown-body img { max-width: 100%; }
 .markdown-body figure { margin: calc(0.75 * var(--doc-rem)) 0; text-align: center; }
 .markdown-body figcaption {
   margin-top: calc(0.4 * var(--doc-rem));
@@ -153,7 +151,6 @@
 .markdown-body .mermaid-block {
   background: var(--muted);
   border: 1px solid var(--border);
-  border-radius: calc(0.5 * var(--doc-rem));
   padding: calc(1 * var(--doc-rem));
   margin: calc(1 * var(--doc-rem)) 0;
   text-align: center;
@@ -164,7 +161,6 @@
 .markdown-body mark.doc-search-match {
   background: color-mix(in oklch, var(--muted-foreground) 35%, transparent);
   color: inherit;
-  border-radius: 2px;
   padding: 0 1px;
 }
 .markdown-body mark.doc-search-match.doc-search-active {
@@ -195,11 +191,9 @@
 .markdown-body ins.diff-ins {
   text-decoration: none;
   background: var(--diff-add-bg);
-  border-radius: 2px;
 }
 .markdown-body del.diff-del {
   background: var(--diff-del-bg);
-  border-radius: 2px;
   text-decoration: line-through;
   opacity: 0.8;
 }
@@ -260,7 +254,6 @@
   padding: calc(0.75 * var(--doc-rem)) calc(1 * var(--doc-rem));
   border: 1px solid color-mix(in oklch, var(--primary) 45%, transparent);
   border-left-width: 4px;
-  border-radius: 6px;
   background: color-mix(in oklch, var(--primary) 6%, transparent);
   break-inside: avoid;
 }
@@ -290,7 +283,6 @@
   color: inherit;
   background: transparent;
   border: 1.5px solid color-mix(in oklch, currentColor 35%, transparent);
-  border-radius: 6px;
   outline: none;
 }
 .markdown-body .galley-answer textarea:focus { border-color: var(--primary); }
@@ -310,7 +302,6 @@
   color: var(--foreground);
   max-width: var(--paper-width, 860px);
   margin: 1.5rem auto;
-  border-radius: 6px;
   box-shadow: 0 2px 18px rgb(0 0 0 / 0.45);
 }
 /* Images scale with the text size, as in a browser. */
@@ -325,7 +316,6 @@
   background: color-mix(in oklch, var(--foreground) 25%, transparent);
   background-clip: padding-box;
   border: 2px solid transparent;
-  border-radius: 5px;
 }
 .paper ::-webkit-scrollbar-thumb:hover { background-color: color-mix(in oklch, var(--foreground) 40%, transparent); }
 .paper ::-webkit-scrollbar-corner { background: transparent; }
@@ -344,7 +334,6 @@
     display: block;
     max-width: none;
     margin: 0;
-    border-radius: 0;
     box-shadow: none;
     -webkit-print-color-adjust: exact;
     print-color-adjust: exact;

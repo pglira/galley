@@ -84,7 +84,7 @@ export function RulesEditor({ root, open, onClose, onSaved, onError }: Props) {
           <DialogDescription>The rules for the agent in this galley directory.</DialogDescription>
         </DialogHeader>
         <textarea
-          className="min-h-0 flex-1 resize-none rounded border bg-background p-2 font-mono text-xs leading-relaxed outline-none focus:border-ring"
+          className="min-h-0 flex-1 resize-none border bg-background p-2 font-mono text-xs leading-relaxed outline-none focus:border-ring"
           spellCheck={false}
           disabled={saved == null}
           value={text}

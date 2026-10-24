@@ -8,9 +8,12 @@ import {
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuCheckboxItem,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
 } from "@/components/ui/dropdown-menu";
-import { Search, Settings, Minus, Plus, ClipboardCopy, Check, FileDown, RotateCw } from "lucide-react";
+import { Search, Settings, Minus, Plus, ClipboardCopy, Check, ChevronDown, FileDown, RotateCw } from "lucide-react";
 import { useTheme, PAPER_PRESETS } from "@/lib/theme";
+import { DOC_FONTS } from "@/lib/fonts";
 import {
   usePreferences,
   ZOOM_MIN,
@@ -54,8 +57,18 @@ export function Toolbar({
   onExportPdf,
 }: Props) {
   const { paper, setPaper } = useTheme();
-  const { copyAsMarkdown, setCopyAsMarkdown, zoom, zoomIn, zoomOut, zoomReset, paperWidth, setPaperWidth } =
-    usePreferences();
+  const {
+    copyAsMarkdown,
+    setCopyAsMarkdown,
+    docFont,
+    setDocFont,
+    zoom,
+    zoomIn,
+    zoomOut,
+    zoomReset,
+    paperWidth,
+    setPaperWidth,
+  } = usePreferences();
   const noReference = references.length === 0;
 
   return (
@@ -63,36 +76,46 @@ export function Toolbar({
       <div className="truncate text-xs text-muted-foreground">{title}</div>
       <div className="flex shrink-0 items-center gap-1">
         <label
-          className={cn("flex items-center gap-1.5 text-xs", noReference && "opacity-50")}
+          className={cn("flex items-center gap-2 text-[13px]", noReference && "opacity-50")}
           title={noReference ? "This document has only one snapshot" : "Show the changes since a reference snapshot"}
         >
           <input
             type="checkbox"
+            className="checkbox"
             checked={diffOn && !noReference}
             disabled={noReference}
             onChange={(e) => onDiffOn(e.target.checked)}
           />
           Diff against
         </label>
-        <select
-          className="h-6 rounded border bg-background px-1 text-xs disabled:opacity-50"
-          value={reference ?? ""}
-          disabled={noReference}
-          onChange={(e) => {
-            onReference(e.target.value);
-            onDiffOn(true);
-          }}
-        >
-          {references.map((r) => (
-            <option key={r} value={r}>
-              Snapshot {r}
-            </option>
-          ))}
-        </select>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild disabled={noReference}>
+            <Button variant="outline" size="xs" className="ml-1 text-[13px] font-normal">
+              {reference ? `Snapshot ${reference}` : "No snapshot"}
+              <ChevronDown />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="start" className="w-auto min-w-36">
+            <DropdownMenuRadioGroup
+              value={reference ?? ""}
+              onValueChange={(r) => {
+                onReference(r);
+                onDiffOn(true);
+              }}
+            >
+              {references.map((r) => (
+                <DropdownMenuRadioItem key={r} value={r}>
+                  Snapshot {r}
+                </DropdownMenuRadioItem>
+              ))}
+            </DropdownMenuRadioGroup>
+          </DropdownMenuContent>
+        </DropdownMenu>
+        <div className="mx-2 h-4 w-px bg-border" />
         <Button
-          variant="outline"
+          variant={canCopyPrompt ? "default" : "outline"}
           size="xs"
-          className="ml-2"
+          className="text-[13px]"
           disabled={!canCopyPrompt}
           title={
             canCopyPrompt
@@ -104,17 +127,17 @@ export function Toolbar({
           {copied ? <Check /> : <ClipboardCopy />}
           {copied ? "Copied" : "Copy prompt"}
         </Button>
+        <div className="mx-2 h-4 w-px bg-border" />
         <Tooltip>
           <TooltipTrigger asChild>
             <Button
               onClick={() => onReload?.()}
               disabled={!onReload}
               variant="ghost"
-              size="icon"
-              className="ml-2 h-7 w-7"
+              size="icon-xs"
               aria-label="Reload snapshot"
             >
-              <RotateCw className="h-3.5 w-3.5" />
+              <RotateCw />
             </Button>
           </TooltipTrigger>
           <TooltipContent>Reload snapshot (F5)</TooltipContent>
@@ -125,19 +148,18 @@ export function Toolbar({
               onClick={() => onExportPdf?.()}
               disabled={!onExportPdf}
               variant="ghost"
-              size="icon"
-              className="h-7 w-7"
+              size="icon-xs"
               aria-label="Export PDF"
             >
-              <FileDown className="h-3.5 w-3.5" />
+              <FileDown />
             </Button>
           </TooltipTrigger>
           <TooltipContent>Export PDF (Ctrl P)</TooltipContent>
         </Tooltip>
         <Tooltip>
           <TooltipTrigger asChild>
-            <Button onClick={onFind} variant="ghost" size="icon" className="h-7 w-7">
-              <Search className="h-3.5 w-3.5" />
+            <Button onClick={onFind} variant="ghost" size="icon-xs" aria-label="Find in document">
+              <Search />
             </Button>
           </TooltipTrigger>
           <TooltipContent>Find in document (Ctrl F)</TooltipContent>
@@ -146,8 +168,8 @@ export function Toolbar({
           <Tooltip>
             <TooltipTrigger asChild>
               <DropdownMenuTrigger asChild>
-                <Button variant="ghost" size="icon" className="h-7 w-7">
-                  <Settings className="h-3.5 w-3.5" />
+                <Button variant="ghost" size="icon-xs" aria-label="Settings">
+                  <Settings />
                 </Button>
               </DropdownMenuTrigger>
             </TooltipTrigger>
@@ -176,7 +198,7 @@ export function Toolbar({
               </Button>
               <button
                 onClick={zoomReset}
-                className="min-w-[3rem] rounded px-1 text-center text-xs text-foreground hover:bg-accent"
+                className="min-w-[3rem] px-1 text-center text-xs text-foreground hover:bg-accent"
                 title="Reset to 100%"
               >
                 {Math.round(zoom * 100)}%
@@ -201,12 +223,12 @@ export function Toolbar({
                 step={20}
                 value={paperWidth}
                 onChange={(e) => setPaperWidth(Number(e.target.value))}
-                className="flex-1 accent-primary"
+                className="flex-1"
                 aria-label="Page width"
               />
               <button
                 onClick={() => setPaperWidth(PAPER_WIDTH_DEFAULT)}
-                className="min-w-[3.5rem] rounded px-1 text-center text-xs text-foreground hover:bg-accent"
+                className="min-w-[3.5rem] px-1 text-center text-xs text-foreground hover:bg-accent"
                 title={`Reset to ${PAPER_WIDTH_DEFAULT} px`}
               >
                 {paperWidth} px
@@ -221,7 +243,7 @@ export function Toolbar({
                   title={p.name}
                   onClick={() => setPaper(p.color)}
                   className={cn(
-                    "size-6 shrink-0 rounded-full border border-white/20",
+                    "size-6 shrink-0 border border-white/20",
                     paper.toLowerCase() === p.color && "ring-2 ring-primary ring-offset-1 ring-offset-popover"
                   )}
                   style={{ background: p.color }}
@@ -229,7 +251,7 @@ export function Toolbar({
               ))}
               <label
                 title="Custom color"
-                className="relative size-6 shrink-0 cursor-pointer overflow-hidden rounded-full border border-white/20"
+                className="relative size-6 shrink-0 cursor-pointer overflow-hidden border border-white/20"
                 style={{ background: "conic-gradient(red, yellow, lime, cyan, blue, magenta, red)" }}
               >
                 <input
@@ -240,6 +262,20 @@ export function Toolbar({
                 />
               </label>
             </div>
+            <DropdownMenuSeparator />
+            <DropdownMenuLabel className="text-xs font-normal text-muted-foreground">Document font</DropdownMenuLabel>
+            <DropdownMenuRadioGroup value={docFont} onValueChange={setDocFont}>
+              {DOC_FONTS.map((f) => (
+                <DropdownMenuRadioItem
+                  key={f.id}
+                  value={f.id}
+                  style={{ fontFamily: f.family }}
+                  onSelect={(e) => e.preventDefault()}
+                >
+                  {f.name}
+                </DropdownMenuRadioItem>
+              ))}
+            </DropdownMenuRadioGroup>
           </DropdownMenuContent>
         </DropdownMenu>
       </div>

@@ -110,7 +110,7 @@ export function SearchResults({ query, galley, onOpenHit }: ResultsProps) {
                   )}
                   <span className="min-w-0 flex-1 break-words text-muted-foreground">
                     {s.before}
-                    <mark className="rounded-sm bg-primary/30 text-foreground">{s.match}</mark>
+                    <mark className="bg-primary/30 text-foreground">{s.match}</mark>
                     {s.after}
                   </span>
                 </button>

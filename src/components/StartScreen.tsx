@@ -40,7 +40,7 @@ export function StartScreen({ recent, names, onOpen, onCreate, onOpenRecent, onR
             </h2>
             <ul>
               {recent.map((d, i) => (
-                <li key={d} className="group flex items-center rounded hover:bg-muted">
+                <li key={d} className="group flex items-center hover:bg-muted">
                   <button
                     className="min-w-0 flex-1 truncate px-2 py-1 text-left text-sm"
                     title={d}

@@ -224,7 +224,7 @@ export function Viewer({
   const ref = (articleRef ?? internalRef) as React.RefObject<HTMLElement | null>;
   const scrollerRef = React.useRef<HTMLDivElement>(null);
   const { paper, resolved } = useTheme();
-  const { copyAsMarkdown, zoom, paperWidth } = usePreferences();
+  const { copyAsMarkdown, zoom, paperWidth, docFont } = usePreferences();
   const [renderNonce, setRenderNonce] = React.useState(0);
 
   // Keep callbacks fresh without making them effect dependencies.
@@ -262,14 +262,14 @@ export function Viewer({
   }, [html]);
 
   // Highlight code and render diagrams after each new HTML. A new paper tone
-  // restores the plain HTML first, so that code and diagrams get the colors
-  // of the new tone.
-  const renderedTone = React.useRef(resolved);
+  // or document font restores the plain HTML first, so that code and
+  // diagrams get the colors of the new tone and the new font.
+  const renderedStyle = React.useRef(`${resolved} ${docFont}`);
   React.useEffect(() => {
     const root = ref.current;
     if (!root) return;
-    if (renderedTone.current !== resolved) {
-      renderedTone.current = resolved;
+    if (renderedStyle.current !== `${resolved} ${docFont}`) {
+      renderedStyle.current = `${resolved} ${docFont}`;
       root.innerHTML = html;
     }
     let cancelled = false;
@@ -287,7 +287,7 @@ export function Viewer({
     };
     // `ref` is stable.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [html, resolved]);
+  }, [html, resolved, docFont]);
 
   // Mark the quotes of the annotations.
   React.useEffect(() => {

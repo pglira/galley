@@ -39,7 +39,7 @@ function CommentBox({ onSave, onCancel }: { onSave: (comment: string) => void; o
     <div className="flex flex-col gap-1.5">
       <textarea
         ref={ref}
-        className="min-h-20 w-full resize-y rounded border border-white/20 bg-neutral-900 p-1.5 text-sm outline-none focus:border-white/50"
+        className="min-h-20 w-full resize-y border border-white/20 bg-neutral-900 p-1.5 text-sm outline-none focus:border-white/50"
         placeholder="Comment on this image"
         value={text}
         onChange={(e) => setText(e.target.value)}
@@ -208,7 +208,7 @@ export function ImageViewer({ images, index, onIndex, comments, onComment, onClo
             <Minus />
           </Button>
           <button
-            className="min-w-14 rounded px-1 text-center text-xs hover:bg-white/10"
+            className="min-w-14 px-1 text-center text-xs hover:bg-white/10"
             title="Actual size (1)"
             onClick={actualSize}
           >
@@ -266,7 +266,7 @@ export function ImageViewer({ images, index, onIndex, comments, onComment, onClo
       {(writing || comments.length > 0) && (
         <div className="max-h-[40%] shrink-0 space-y-2 overflow-auto border-t border-white/10 px-3 py-2">
           {comments.map((c, i) => (
-            <p key={i} className="rounded border border-white/10 p-1.5 text-sm whitespace-pre-wrap">
+            <p key={i} className="border border-white/10 p-1.5 text-sm whitespace-pre-wrap">
               {c}
             </p>
           ))}

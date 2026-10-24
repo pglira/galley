@@ -1,5 +1,6 @@
 import * as React from "react";
 import { tauri } from "@/lib/tauri";
+import { DOC_FONT_DEFAULT, docFont } from "@/lib/fonts";
 
 export interface Preferences {
   copyAsMarkdown: boolean;
@@ -11,6 +12,8 @@ export interface Preferences {
   sidebarRightWidth: number;
   // Height of the table of contents below the document tree, in CSS pixels.
   contentsHeight: number;
+  // The id of the font of the rendered document (`src/lib/fonts.ts`).
+  docFont: string;
 }
 
 const STORAGE_KEY = "galley:preferences";
@@ -22,6 +25,7 @@ const DEFAULTS: Preferences = {
   sidebarLeftWidth: 256,
   sidebarRightWidth: 300,
   contentsHeight: 300,
+  docFont: DOC_FONT_DEFAULT,
 };
 
 export const ZOOM_MIN = 0.5;
@@ -43,6 +47,7 @@ export const CONTENTS_HEIGHT_DEFAULT = 300;
 
 interface Ctx extends Preferences {
   setCopyAsMarkdown: (v: boolean) => void;
+  setDocFont: (id: string) => void;
   zoomIn: () => void;
   zoomOut: () => void;
   zoomReset: () => void;
@@ -81,6 +86,7 @@ function persistToBackend(prefs: Preferences) {
       sidebar_right_width: prefs.sidebarRightWidth,
       contents_height: prefs.contentsHeight,
       copy_as_markdown: prefs.copyAsMarkdown,
+      doc_font: prefs.docFont,
     }).catch(() => {});
   }, 300);
 }
@@ -103,6 +109,7 @@ export function PreferencesProvider({ children }: { children: React.ReactNode })
         if (backend.sidebar_right_width != null) next.sidebarRightWidth = backend.sidebar_right_width;
         if (backend.contents_height != null) next.contentsHeight = backend.contents_height;
         if (backend.copy_as_markdown != null) next.copyAsMarkdown = backend.copy_as_markdown;
+        if (backend.doc_font != null) next.docFont = backend.doc_font;
         persist(next);
         return next;
       });
@@ -122,6 +129,20 @@ export function PreferencesProvider({ children }: { children: React.ReactNode })
     (v: boolean) => update((p) => ({ ...p, copyAsMarkdown: v })),
     [update],
   );
+
+  const setDocFont = React.useCallback(
+    (id: string) => update((p) => ({ ...p, docFont: id })),
+    [update],
+  );
+
+  // The document font applies through CSS variables on the root element, so
+  // that the viewer and the PDF export use it.
+  React.useEffect(() => {
+    const font = docFont(prefs.docFont);
+    const style = document.documentElement.style;
+    style.setProperty("--font-doc", font.family);
+    style.setProperty("--doc-font-scale", String(font.scale));
+  }, [prefs.docFont]);
 
   const zoomIn = React.useCallback(
     () => update((p) => ({ ...p, zoom: clampZoom(p.zoom + ZOOM_STEP) })),
@@ -182,6 +203,7 @@ export function PreferencesProvider({ children }: { children: React.ReactNode })
     () => ({
       ...prefs,
       setCopyAsMarkdown,
+      setDocFont,
       zoomIn,
       zoomOut,
       zoomReset,
@@ -194,6 +216,7 @@ export function PreferencesProvider({ children }: { children: React.ReactNode })
     [
       prefs,
       setCopyAsMarkdown,
+      setDocFont,
       zoomIn,
       zoomOut,
       zoomReset,

@@ -11,7 +11,12 @@ export async function renderMermaidBlocks(root: HTMLElement, theme: "light" | "d
   const blocks = root.querySelectorAll<HTMLPreElement>("pre.mermaid-pending");
   if (blocks.length === 0) return;
   const mermaid = await loadMermaid();
-  mermaid.initialize({ startOnLoad: false, theme: theme === "dark" ? "dark" : "default" });
+  // Diagrams use the font of the document.
+  mermaid.initialize({
+    startOnLoad: false,
+    theme: theme === "dark" ? "dark" : "neutral",
+    fontFamily: getComputedStyle(root).fontFamily,
+  });
 
   let i = 0;
   for (const pre of Array.from(blocks)) {
