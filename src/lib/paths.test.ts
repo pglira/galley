@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { isRelativePath, resolveRelative } from "./paths";
+import { dirLabels, isRelativePath, resolveRelative } from "./paths";
 
 describe("isRelativePath", () => {
   it("accepts relative paths", () => {
@@ -28,5 +28,18 @@ describe("resolveRelative", () => {
   });
   it("keeps Windows separators", () => {
     expect(resolveRelative("C:\\r\\document.md", "images/p.png")).toBe("C:\\r\\images\\p.png");
+  });
+});
+
+describe("dirLabels", () => {
+  it("uses the last name for unique names", () => {
+    expect(dirLabels(["/a/.galley", "/b/reviews/", "C:\\work\\notes"])).toEqual([".galley", "reviews", "notes"]);
+  });
+  it("adds parents to equal names until they differ", () => {
+    expect(dirLabels(["/a/.galley", "/b/.galley", "/c/reviews"])).toEqual(["a/.galley", "b/.galley", "reviews"]);
+    expect(dirLabels(["/a/x/.galley", "/b/x/.galley"])).toEqual(["a/x/.galley", "b/x/.galley"]);
+  });
+  it("stops for equal paths", () => {
+    expect(dirLabels(["/a/g", "/a/g"])).toEqual(["a/g", "a/g"]);
   });
 });

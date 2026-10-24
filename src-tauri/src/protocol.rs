@@ -1,8 +1,8 @@
-//! The `galley` URI scheme serves files of the open galley directory, for
-//! example the images of a document. It refuses all paths outside that
-//! directory, so a document can only load files of the open galley.
+//! The `galley` URI scheme serves files of the open galley directories, for
+//! example the images of a document. It refuses all paths outside these
+//! directories, so a document can only load files of an open galley.
 
-use crate::commands::OpenDir;
+use crate::commands::OpenDirs;
 use percent_encoding::percent_decode_str;
 use std::borrow::Cow;
 use std::path::{Path, PathBuf};
@@ -40,13 +40,14 @@ fn status(code: StatusCode) -> Response<Body> {
 }
 
 pub fn handle<R: Runtime>(ctx: UriSchemeContext<'_, R>, request: Request<Vec<u8>>) -> Response<Body> {
-    let Some(root) = ctx.app_handle().state::<OpenDir>().0.lock().clone() else {
-        return status(StatusCode::FORBIDDEN);
-    };
     let Some(path) = file_path(request.uri().path()) else {
         return status(StatusCode::BAD_REQUEST);
     };
-    match crate::galley::read_bytes(&root, &path) {
+    let roots = ctx.app_handle().state::<OpenDirs>().all();
+    let Some(root) = roots.iter().find(|r| path.starts_with(r)) else {
+        return status(StatusCode::FORBIDDEN);
+    };
+    match crate::galley::read_bytes(root, &path) {
         Ok(bytes) => Response::builder()
             .header(header::CONTENT_TYPE, mime_type(&path))
             .body(Cow::Owned(bytes))

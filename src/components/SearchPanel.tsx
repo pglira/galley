@@ -54,8 +54,9 @@ export function SearchResults({ query, galley, onOpenHit }: ResultsProps) {
   useEffect(() => {
     let cancelled = false;
     const id = setTimeout(() => {
+      if (!galley) return;
       tauri
-        .search(query)
+        .search(galley.path, query)
         .then((r) => {
           if (cancelled) return;
           setResult(r);

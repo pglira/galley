@@ -7,7 +7,7 @@ mod pdf;
 mod protocol;
 mod settings;
 
-use commands::{InitialDir, OpenDir};
+use commands::{InitialDir, OpenDirs};
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
@@ -18,14 +18,17 @@ pub fn run() {
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_dialog::init())
         .register_uri_scheme_protocol(protocol::SCHEME, protocol::handle)
-        .manage(OpenDir::default())
+        .manage(OpenDirs::default())
         .manage(InitialDir(initial))
         .invoke_handler(tauri::generate_handler![
             commands::get_initial_dir,
             commands::get_recent_dirs,
             commands::remove_recent_dir,
+            commands::get_tab_names,
+            commands::set_tab_name,
             commands::create_dir,
             commands::open_dir,
+            commands::close_dir,
             commands::scan_dir,
             commands::init_rules,
             commands::read_rules,

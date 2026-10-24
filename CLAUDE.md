@@ -25,11 +25,11 @@ Tauri v2 (Rust), Vite + React + TypeScript, pnpm, markdown-it, Shiki, mermaid, s
 
 ## Layout
 
-- `src-tauri/src/galley.rs` — scan, annotations I/O, deletion, image hashes. All paths are checked to be inside the open galley root.
-- `src-tauri/src/commands.rs` — Tauri commands; the open root lives in `OpenDir` managed state.
-- `src-tauri/src/protocol.rs` — the `galley` URI scheme for the images of the open galley.
+- `src-tauri/src/galley.rs` — scan, annotations I/O, deletion, image hashes. All paths are checked to be inside the galley root.
+- `src-tauri/src/commands.rs` — Tauri commands; the open roots live in `OpenDirs` managed state. Commands on a galley take its root, which must be open.
+- `src-tauri/src/protocol.rs` — the `galley` URI scheme for the images of the open galleys.
 - `src-tauri/src/pdf.rs` — PDF export through WebKitGTK (Linux); other platforms use the print dialog.
-- `src/App.tsx` — state: open directory, selection, diff, annotations. Polls `scan_dir` every 2 s (works on sshfs and container volumes, where file events do not).
+- `src/App.tsx` — `AppShell` holds the tabs (`src/components/TabBar.tsx`), one per open galley. `GalleyView` holds the state of one galley: selection, diff, annotations. The shown galley polls `scan_dir` every 2 s (works on sshfs and container volumes, where file events do not).
 - `src/components/Viewer.tsx` — rendering pipeline: markdown → optional diff → Shiki/mermaid → annotation marks.
 - `src/lib/diff.ts` — block diff of rendered HTML with word-level diff inside text blocks.
 - `src/lib/textRange.ts` — character index over DOM text, wrap and insert helpers.
@@ -44,7 +44,7 @@ Tauri v2 (Rust), Vite + React + TypeScript, pnpm, markdown-it, Shiki, mermaid, s
 
 - All `invoke()` calls go through `src/lib/tauri.ts`.
 - One markdown-it instance in `src/lib/markdown.ts`. Sanitize all HTML with DOMPurify.
-- Relative image paths resolve against the document and load through the `galley` URI scheme (`src-tauri/src/protocol.rs`). It serves only files inside the open galley root. The CSP in `index.html` allows images only from the app, this scheme and `data:`.
+- Relative image paths resolve against the document and load through the `galley` URI scheme (`src-tauri/src/protocol.rs`). It serves only files inside an open galley root. The CSP in `index.html` allows images only from the app, this scheme and `data:`.
 - Markdown styles live in `src/styles/markdown.css`, including the diff and annotation styles.
 - The app chrome is always dark. The document renders on a `.paper` element with a selectable color (`src/lib/theme.tsx`). `.paper-light` and `.paper-dark` set the color variables for content on the paper; Shiki and mermaid use the tone of the paper.
 - `scripts/install.sh` builds the release and installs the launcher, the desktop entry and the icons below `$PREFIX`.

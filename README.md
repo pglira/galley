@@ -48,6 +48,7 @@ galley path/to/galley-directory
 
 ## Usage
 
+- Open many galley directories in one window, each in a tab. The folder icon above the document list (`Ctrl O`) opens a galley directory in a new tab. `Ctrl T` or the plus icon in the tab bar shows the start screen in a new tab. `Ctrl W` or a middle click closes a tab. `Ctrl Tab`, `Ctrl Shift Tab`, `Ctrl Page Down` and `Ctrl Page Up` change the tab. A tab shows the name of the directory; when two tabs have the same name, they also show their parent directories. Double-click a tab to give it a name, and remove the name to show the directory name again.
 - Click an image to open it in an overlay. Zoom with the mouse wheel or `+` and `-`, pan with drag. `0` fits the image, `1` shows it at 100 %, `Esc` closes.
 - Move in the document with the keys: `j` and `k` or the arrow keys (two lines), `d` and `u` (half a page), `Space`, `Shift Space`, `b`, `Page Down` and `Page Up` (a page), `g` or `Home` (top), `G` or `End` (bottom), `]` and `[` (next and previous heading).
 - Change the text size of the document with `Ctrl +`, `Ctrl -` and `Ctrl 0` (reset), or with `Ctrl` and the mouse wheel. The images scale with the text.

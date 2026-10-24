@@ -11,6 +11,8 @@ import {
 import { tauri } from "@/lib/tauri";
 
 interface Props {
+  // The path of the galley directory.
+  root: string;
   open: boolean;
   onClose: () => void;
   // Called after a save.
@@ -18,9 +20,9 @@ interface Props {
   onError: (message: string) => void;
 }
 
-// A dialog to edit `GALLEY.md` of the open galley directory. Escape and a
+// A dialog to edit `GALLEY.md` of the galley directory `root`. Escape and a
 // click outside close the dialog only if the text has no unsaved changes.
-export function RulesEditor({ open, onClose, onSaved, onError }: Props) {
+export function RulesEditor({ root, open, onClose, onSaved, onError }: Props) {
   const [text, setText] = useState("");
   const [saved, setSaved] = useState<string | null>(null);
   const dirty = saved != null && text !== saved;
@@ -31,7 +33,7 @@ export function RulesEditor({ open, onClose, onSaved, onError }: Props) {
     let cancelled = false;
     setSaved(null);
     tauri
-      .readRules()
+      .readRules(root)
       .then((t) => {
         if (cancelled) return;
         setText(t);
@@ -49,7 +51,7 @@ export function RulesEditor({ open, onClose, onSaved, onError }: Props) {
 
   const save = async () => {
     try {
-      await tauri.writeRules(text);
+      await tauri.writeRules(root, text);
       onSaved();
       onClose();
     } catch (e) {

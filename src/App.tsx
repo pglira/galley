@@ -16,11 +16,13 @@ import { StartScreen } from "@/components/StartScreen";
 import { RulesEditor } from "@/components/RulesEditor";
 import { SearchBox, SearchResults } from "@/components/SearchPanel";
 import { TableOfContents } from "@/components/TableOfContents";
+import { TabBar } from "@/components/TabBar";
 import { tauri, assetUrl, type Galley, type Document, type SearchHit } from "@/lib/tauri";
 import { parseAnnotations, serializeAnnotations, type Annotation } from "@/lib/annotations";
 import { buildPrompt, copyText } from "@/lib/prompt";
 import { renderMarkdown } from "@/lib/markdown";
-import { isRelativePath, resolveRelative } from "@/lib/paths";
+import { dirLabels, isRelativePath, resolveRelative } from "@/lib/paths";
+import { cn } from "@/lib/utils";
 
 const POLL_MS = 2000;
 
@@ -39,8 +41,20 @@ function imagePaths(content: Content): string[] {
   return out;
 }
 
-function AppShell() {
-  const [galley, setGalley] = useState<Galley | null>(null);
+interface GalleyViewProps {
+  // The galley as `open_dir` returns it. Its `path` identifies the galley.
+  initial: Galley;
+  // The name of the galley, as its tab shows it.
+  name: string;
+  // Only the galley of the shown tab polls its directory and handles keys.
+  shown: boolean;
+  onOpenDir: () => void;
+}
+
+// The tree, the document and the annotations of one galley directory.
+function GalleyView({ initial, name, shown, onOpenDir }: GalleyViewProps) {
+  const root = initial.path;
+  const [galley, setGalley] = useState<Galley>(initial);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [selection, setSelection] = useState<Selection | null>(null);
@@ -61,7 +75,6 @@ function AppShell() {
   const [contentNonce, setContentNonce] = useState(0);
   // Increments on each manual reload; the snapshot files load again.
   const [reloadNonce, setReloadNonce] = useState(0);
-  const [recent, setRecent] = useState<string[]>([]);
   const [gallery, setGallery] = useState<{ images: DocImage[]; index: number } | null>(null);
   const [rulesOpen, setRulesOpen] = useState(false);
   const articleRef = useRef<HTMLElement>(null);
@@ -70,8 +83,8 @@ function AppShell() {
   const copyPromptRef = useRef<(() => void) | null>(null);
   const annotateRef = useRef<(() => void) | null>(null);
   const addGeneralRef = useRef<(() => void) | null>(null);
-  const galleyJson = useRef("");
-  const { zoomIn, zoomOut, zoomReset, sidebarLeftWidth, sidebarRightWidth, setSidebarWidth, resetSidebarWidth } =
+  const galleyJson = useRef(JSON.stringify(initial));
+  const { sidebarLeftWidth, sidebarRightWidth, setSidebarWidth, resetSidebarWidth } =
     usePreferences();
 
   const doc: Document | null = galley?.documents.find((r) => r.name === selection?.document) ?? null;
@@ -88,61 +101,19 @@ function AppShell() {
     setGalley(g);
   }, []);
 
-  const openDir = useCallback(
-    async (path: string) => {
-      try {
-        const g = await tauri.openDir(path);
-        setSelection(null);
-        applyGalley(g);
-        setError(null);
-      } catch (e) {
-        setError(String(e));
-      }
-    },
-    [applyGalley]
-  );
-
-  const pickDir = useCallback(async () => {
-    const picked = await openDialog({ directory: true, multiple: false });
-    if (typeof picked === "string") openDir(picked);
-  }, [openDir]);
-
-  // Asks for a directory for a new galley, creates it if necessary, writes
-  // GALLEY.md into it and opens it. The folder picker has a button to create
-  // a new folder.
-  const createDir = useCallback(async () => {
-    const picked = await openDialog({ title: "Create a galley directory", directory: true, multiple: false });
-    if (typeof picked !== "string") return;
-    try {
-      await tauri.createDir(picked);
-      openDir(picked);
-    } catch (e) {
-      setError(String(e));
-    }
-  }, [openDir]);
-
-  // Open the directory from the command line. Without a directory, the start
-  // screen shows.
+  // Poll the directory while the tab shows, and scan it at once when the tab
+  // shows again. Polling works on all file systems, also on network mounts
+  // and container volumes that do not report file events.
   useEffect(() => {
-    tauri.getInitialDir().then((d) => {
-      if (d) openDir(d);
-    });
-    tauri.getRecentDirs().then(setRecent).catch(() => {});
-  }, [openDir]);
-
-  // Poll the directory. Polling works on all file systems, also on network
-  // mounts and container volumes that do not report file events.
-  useEffect(() => {
-    if (!galley) return;
-    const id = setInterval(() => {
-      tauri.scanDir().then(applyGalley).catch(() => {});
-    }, POLL_MS);
+    if (!shown) return;
+    const scan = () => tauri.scanDir(root).then(applyGalley).catch(() => {});
+    scan();
+    const id = setInterval(scan, POLL_MS);
     return () => clearInterval(id);
-  }, [galley != null, applyGalley]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [shown, root, applyGalley]);
 
   // Keep the selection valid: default to the last snapshot of the newest document.
   useEffect(() => {
-    if (!galley) return;
     const r = galley.documents.find((x) => x.name === selection?.document) ?? galley.documents[0];
     if (!r) {
       if (selection) setSelection(null);
@@ -164,7 +135,7 @@ function AppShell() {
     let cancelled = false;
     const filePath = joinPath(snapshot.path, "document.md");
     tauri
-      .readFile(filePath)
+      .readFile(root, filePath)
       .then((source) => !cancelled && setContent({ source, filePath, version: reloadNonce }))
       .catch((e) => !cancelled && setError(String(e)));
     return () => {
@@ -185,7 +156,7 @@ function AppShell() {
     }
     let cancelled = false;
     tauri
-      .readAnnotations(snapshot.path)
+      .readAnnotations(root, snapshot.path)
       .then((text) => !cancelled && setAnnotations(parseAnnotations(text)))
       .catch((e) => !cancelled && setError(String(e)));
     return () => {
@@ -214,7 +185,7 @@ function AppShell() {
     let cancelled = false;
     const filePath = joinPath(refSnapshot.path, "document.md");
     tauri
-      .readFile(filePath)
+      .readFile(root, filePath)
       .then((source) => !cancelled && setCompareContent({ source, filePath, version: reloadNonce }))
       .catch((e) => !cancelled && setError(String(e)));
     return () => {
@@ -229,7 +200,7 @@ function AppShell() {
     if (urls.length === 0) return;
     let cancelled = false;
     tauri
-      .hashFiles(urls.map((u) => u.p))
+      .hashFiles(root, urls.map((u) => u.p))
       .then((hashes) => {
         if (cancelled) return;
         const map: Record<string, string> = {};
@@ -250,12 +221,12 @@ function AppShell() {
       if (!snapshot) return;
       setAnnotations(list);
       try {
-        await tauri.writeAnnotations(snapshot.path, serializeAnnotations(list));
+        await tauri.writeAnnotations(root, snapshot.path, serializeAnnotations(list));
       } catch (e) {
         setError(String(e));
       }
     },
-    [snapshot]
+    [root, snapshot]
   );
 
   const onSaveDraft = (d: Draft) => {
@@ -346,8 +317,8 @@ function AppShell() {
 
   const onDeleteDocument = async (r: Document) => {
     try {
-      await tauri.deleteDocument(r.path);
-      applyGalley(await tauri.scanDir());
+      await tauri.deleteDocument(root, r.path);
+      applyGalley(await tauri.scanDir(root));
     } catch (e) {
       setError(String(e));
     }
@@ -355,8 +326,8 @@ function AppShell() {
 
   const onDeleteSnapshots = async (r: Document, names: string[]) => {
     try {
-      await tauri.deleteSnapshots(r.path, names);
-      applyGalley(await tauri.scanDir());
+      await tauri.deleteSnapshots(root, r.path, names);
+      applyGalley(await tauri.scanDir(root));
     } catch (e) {
       setError(String(e));
     }
@@ -376,15 +347,14 @@ function AppShell() {
   // Loads the directory, the selected snapshot, its annotations, its images
   // and the reference of the diff again.
   const reload = useCallback(() => {
-    if (!galley) return;
     setReloadNonce((n) => n + 1);
-    tauri.scanDir().then(applyGalley).catch((e) => setError(String(e)));
-  }, [galley != null, applyGalley]); // eslint-disable-line react-hooks/exhaustive-deps
+    tauri.scanDir(root).then(applyGalley).catch((e) => setError(String(e)));
+  }, [root, applyGalley]);
 
   const onInitRules = async () => {
     try {
-      await tauri.initRules();
-      applyGalley(await tauri.scanDir());
+      await tauri.initRules(root);
+      applyGalley(await tauri.scanDir(root));
     } catch (e) {
       setError(String(e));
     }
@@ -404,8 +374,9 @@ function AppShell() {
     return () => clearTimeout(id);
   }, [notice]);
 
-  // Keyboard shortcuts.
+  // Keyboard shortcuts of the galley in the shown tab.
   useEffect(() => {
+    if (!shown) return;
     const onKey = (e: KeyboardEvent) => {
       const meta = e.metaKey || e.ctrlKey;
       const k = e.key.toLowerCase();
@@ -431,39 +402,16 @@ function AppShell() {
       } else if (meta && k === "p") {
         e.preventDefault();
         exportPdfRef.current?.();
-      } else if (meta && k === "o") {
-        e.preventDefault();
-        pickDir();
-      } else if (meta && (e.key === "=" || e.key === "+" || e.code === "NumpadAdd")) {
-        e.preventDefault();
-        zoomIn();
-      } else if (meta && (e.key === "-" || e.code === "NumpadSubtract")) {
-        e.preventDefault();
-        zoomOut();
-      } else if (meta && (k === "0" || e.code === "Numpad0")) {
-        e.preventDefault();
-        zoomReset();
       }
     };
-    // Ctrl + mouse wheel changes the text size, as in a browser.
-    const onWheel = (e: WheelEvent) => {
-      if (!(e.ctrlKey || e.metaKey) || e.deltaY === 0) return;
-      e.preventDefault();
-      if (e.deltaY < 0) zoomIn();
-      else zoomOut();
-    };
     window.addEventListener("keydown", onKey);
-    window.addEventListener("wheel", onWheel, { passive: false });
-    return () => {
-      window.removeEventListener("keydown", onKey);
-      window.removeEventListener("wheel", onWheel);
-    };
-  }, [pickDir, reload, zoomIn, zoomOut, zoomReset]);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [shown, reload]);
 
   const compare = diffOn && compareContent ? compareContent : null;
   const title = doc && snapshot
     ? `${documentLabel(doc.name).title} · Snapshot ${snapshot.name}${compare ? ` · changes since snapshot ${reference}` : ""}`
-    : (galley?.path ?? "No galley directory open");
+    : galley.path;
 
   // The PDF title is also the default file name, for example
   // "2026-10-09_1430_cache-design_04" or "..._04_changes-since-03".
@@ -508,36 +456,15 @@ function AppShell() {
     if (snapshot) setDraft({ index: null, quote: "", comment: "" });
   };
 
-  if (!galley) {
-    return (
-      <>
-        <StartScreen
-          recent={recent}
-          onOpen={pickDir}
-          onCreate={createDir}
-          onOpenRecent={openDir}
-          onRemoveRecent={(path) =>
-            tauri
-              .removeRecentDir(path)
-              .then(setRecent)
-              .catch((e) => setError(String(e)))
-          }
-        />
-        {error && (
-          <div className="fixed inset-x-0 bottom-0 bg-destructive/10 px-3 py-1 text-xs text-destructive">{error}</div>
-        )}
-      </>
-    );
-  }
-
   return (
     <div className="flex h-full">
       <div className="flex h-full min-h-0 shrink-0" style={{ width: sidebarLeftWidth }}>
         <DocumentTree
           galley={galley}
+          name={name}
           selection={selection}
           onSelect={setSelection}
-          onOpenDir={pickDir}
+          onOpenDir={onOpenDir}
           onInitRules={onInitRules}
           onEditRules={() => setRulesOpen(true)}
           onDeleteDocument={onDeleteDocument}
@@ -599,14 +526,14 @@ function AppShell() {
                 onImageClick={(images, index) => setGallery({ images, index })}
                 onCheck={onCheck}
                 onAnswer={onAnswer}
-                keyNavigation={!gallery && !rulesOpen}
+                keyNavigation={shown && !gallery && !rulesOpen}
                 articleRef={articleRef}
                 handleRef={viewerRef}
                 onRendered={() => setContentNonce((n) => n + 1)}
               />
             ) : (
               <div className="flex flex-1 items-center justify-center text-sm text-muted-foreground">
-                {galley ? "No document selected." : "Open a galley directory (Ctrl+O)."}
+                No document selected.
               </div>
             )}
             <DocSearch
@@ -674,11 +601,241 @@ function AppShell() {
         />
       )}
       <RulesEditor
+        root={root}
         open={rulesOpen}
         onClose={() => setRulesOpen(false)}
         onSaved={() => setNotice("Saved GALLEY.md")}
         onError={setError}
       />
+    </div>
+  );
+}
+
+interface Tab {
+  id: number;
+  // The galley as `open_dir` returns it, or null for the start screen.
+  galley: Galley | null;
+}
+
+interface Tabs {
+  list: Tab[];
+  active: number;
+}
+
+let nextTabId = 1;
+const makeTab = (galley: Galley | null = null): Tab => ({ id: nextTabId++, galley });
+
+// True if a dialog shows, for example the editor of GALLEY.md or the image
+// viewer. The tab does not change while a dialog shows.
+const dialogShows = () => document.querySelector('[role="dialog"]') != null;
+
+// The window: one tab for each open galley directory. A tab without a galley
+// shows the start screen.
+function AppShell() {
+  const [tabs, setTabs] = useState<Tabs>(() => {
+    const t = makeTab();
+    return { list: [t], active: t.id };
+  });
+  const [recent, setRecent] = useState<string[]>([]);
+  // The names that the user gives to tabs, by galley path.
+  const [names, setNames] = useState<Record<string, string>>({});
+  const [error, setError] = useState<string | null>(null);
+  const { zoomIn, zoomOut, zoomReset } = usePreferences();
+
+  // Opens a galley directory in the shown tab if that tab has the start
+  // screen, else in a new tab. A galley that is open already only shows its
+  // tab.
+  const openDir = useCallback(async (path: string) => {
+    try {
+      const g = await tauri.openDir(path);
+      setTabs(({ list, active }) => {
+        const current = list.find((t) => t.id === active);
+        const empty = current && !current.galley ? current : null;
+        const open = list.find((t) => t.galley?.path === g.path);
+        if (open) return { list: list.filter((t) => t !== empty), active: open.id };
+        if (empty) return { list: list.map((t) => (t === empty ? { ...t, galley: g } : t)), active };
+        const t = makeTab(g);
+        return { list: [...list, t], active: t.id };
+      });
+      setError(null);
+      tauri.getRecentDirs().then(setRecent).catch(() => {});
+    } catch (e) {
+      setError(String(e));
+    }
+  }, []);
+
+  const pickDir = useCallback(async () => {
+    const picked = await openDialog({ directory: true, multiple: false });
+    if (typeof picked === "string") openDir(picked);
+  }, [openDir]);
+
+  // Asks for a directory for a new galley, creates it if necessary, writes
+  // GALLEY.md into it and opens it. The folder picker has a button to create
+  // a new folder.
+  const createDir = useCallback(async () => {
+    const picked = await openDialog({ title: "Create a galley directory", directory: true, multiple: false });
+    if (typeof picked !== "string") return;
+    try {
+      await tauri.createDir(picked);
+      openDir(picked);
+    } catch (e) {
+      setError(String(e));
+    }
+  }, [openDir]);
+
+  // Open the directory from the command line. Without a directory, the start
+  // screen shows.
+  useEffect(() => {
+    tauri.getInitialDir().then((d) => {
+      if (d) openDir(d);
+    });
+    tauri.getRecentDirs().then(setRecent).catch(() => {});
+    tauri.getTabNames().then(setNames).catch(() => {});
+  }, [openDir]);
+
+  const renameTab = (path: string, name: string) =>
+    tauri
+      .setTabName(path, name)
+      .then(setNames)
+      .catch((e) => setError(String(e)));
+
+  // Shows the tab with the start screen, and adds it if necessary.
+  const newTab = useCallback(() => {
+    setTabs(({ list }) => {
+      const empty = list.find((t) => !t.galley);
+      if (empty) return { list, active: empty.id };
+      const t = makeTab();
+      return { list: [...list, t], active: t.id };
+    });
+  }, []);
+
+  // Closes a tab and its galley. The tab to the right shows next. Without
+  // tabs, a tab with the start screen shows.
+  const closeTab = useCallback(
+    (id: number) => {
+      const tab = tabs.list.find((t) => t.id === id);
+      if (!tab) return;
+      if (tab.galley) tauri.closeDir(tab.galley.path).catch(() => {});
+      setTabs(({ list, active }) => {
+        const i = list.findIndex((t) => t.id === id);
+        if (i < 0) return { list, active };
+        const rest = list.filter((t) => t.id !== id);
+        if (rest.length === 0) {
+          const t = makeTab();
+          return { list: [t], active: t.id };
+        }
+        return { list: rest, active: id === active ? rest[Math.min(i, rest.length - 1)].id : active };
+      });
+    },
+    [tabs]
+  );
+
+  // Shows the next tab (`step` 1) or the previous tab (`step` -1).
+  const cycleTab = useCallback((step: number) => {
+    setTabs(({ list, active }) => {
+      const i = list.findIndex((t) => t.id === active);
+      return { list, active: list[(i + step + list.length) % list.length].id };
+    });
+  }, []);
+
+  // Keyboard shortcuts of the window. GalleyView has the shortcuts of a galley.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      const meta = e.metaKey || e.ctrlKey;
+      const k = e.key.toLowerCase();
+      if (meta && k === "o") {
+        e.preventDefault();
+        pickDir();
+      } else if (meta && k === "t") {
+        e.preventDefault();
+        if (!dialogShows()) newTab();
+      } else if (meta && k === "w") {
+        e.preventDefault();
+        if (!dialogShows()) closeTab(tabs.active);
+      } else if (meta && (e.key === "Tab" || e.key === "PageDown" || e.key === "PageUp")) {
+        e.preventDefault();
+        if (!dialogShows()) cycleTab(e.key === "PageUp" || (e.key === "Tab" && e.shiftKey) ? -1 : 1);
+      } else if (meta && (e.key === "=" || e.key === "+" || e.code === "NumpadAdd")) {
+        e.preventDefault();
+        zoomIn();
+      } else if (meta && (e.key === "-" || e.code === "NumpadSubtract")) {
+        e.preventDefault();
+        zoomOut();
+      } else if (meta && (k === "0" || e.code === "Numpad0")) {
+        e.preventDefault();
+        zoomReset();
+      }
+    };
+    // Ctrl + mouse wheel changes the text size, as in a browser.
+    const onWheel = (e: WheelEvent) => {
+      if (!(e.ctrlKey || e.metaKey) || e.deltaY === 0) return;
+      e.preventDefault();
+      if (e.deltaY < 0) zoomIn();
+      else zoomOut();
+    };
+    window.addEventListener("keydown", onKey);
+    window.addEventListener("wheel", onWheel, { passive: false });
+    return () => {
+      window.removeEventListener("keydown", onKey);
+      window.removeEventListener("wheel", onWheel);
+    };
+  }, [pickDir, newTab, closeTab, cycleTab, tabs.active, zoomIn, zoomOut, zoomReset]);
+
+  // The tab bar shows when a galley is open or when there are two tabs.
+  const showBar = tabs.list.length > 1 || tabs.list.some((t) => t.galley);
+
+  // A tab shows the name that the user gives it, else the directory name.
+  // Equal directory names get their parent directories.
+  const paths = tabs.list.flatMap((t) => (t.galley ? [t.galley.path] : []));
+  const autoLabels = dirLabels(paths);
+  const label = (t: Tab) =>
+    t.galley ? (names[t.galley.path] ?? autoLabels[paths.indexOf(t.galley.path)]) : "New tab";
+
+  return (
+    <div className="flex h-full flex-col">
+      {showBar && (
+        <TabBar
+          tabs={tabs.list.map((t) => ({ id: t.id, label: label(t), path: t.galley?.path ?? null }))}
+          active={tabs.active}
+          onActivate={(id) => setTabs(({ list }) => ({ list, active: id }))}
+          onClose={closeTab}
+          onNew={newTab}
+          onRename={renameTab}
+        />
+      )}
+      {error && (
+        <div className="flex items-center justify-between border-b bg-destructive/10 px-3 py-1 text-xs text-destructive">
+          <span className="truncate">{error}</span>
+          <button className="ml-2 underline" onClick={() => setError(null)}>
+            Dismiss
+          </button>
+        </div>
+      )}
+      {/* All tabs stay in the document, so that each keeps its scroll
+          positions and drafts. Only the active tab is visible. */}
+      <div className="relative min-h-0 flex-1">
+        {tabs.list.map((t) => (
+          <div key={t.id} className={cn("absolute inset-0", t.id !== tabs.active && "invisible")}>
+            {t.galley ? (
+              <GalleyView initial={t.galley} name={label(t)} shown={t.id === tabs.active} onOpenDir={pickDir} />
+            ) : (
+              <StartScreen
+                recent={recent}
+                names={names}
+                onOpen={pickDir}
+                onCreate={createDir}
+                onOpenRecent={openDir}
+                onRemoveRecent={(path) =>
+                  tauri
+                    .removeRecentDir(path)
+                    .then(setRecent)
+                    .catch((e) => setError(String(e)))
+                }
+              />
+            )}
+          </div>
+        ))}
+      </div>
     </div>
   );
 }

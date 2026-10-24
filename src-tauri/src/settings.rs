@@ -1,5 +1,6 @@
 use crate::error::AppResult;
 use serde::{Deserialize, Serialize};
+use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
@@ -20,6 +21,9 @@ pub struct Settings {
     pub contents_height: Option<u32>,
     #[serde(default)]
     pub copy_as_markdown: Option<bool>,
+    /// Names that the user gives to the tabs of galley directories, by path.
+    #[serde(default)]
+    pub tab_names: BTreeMap<String, String>,
 }
 
 const FILE_NAME: &str = "settings.json";
@@ -55,6 +59,17 @@ impl Settings {
     /// Removes `dir` from the recent directories.
     pub fn remove_recent(&mut self, dir: &str) {
         self.recent_dirs.retain(|d| d != dir);
+    }
+
+    /// Sets the tab name of the galley directory `dir`. An empty name removes
+    /// the name, so that the tab shows the directory name.
+    pub fn set_tab_name(&mut self, dir: &str, name: &str) {
+        let name = name.trim();
+        if name.is_empty() {
+            self.tab_names.remove(dir);
+        } else {
+            self.tab_names.insert(dir.to_string(), name.to_string());
+        }
     }
 
     /// Loads the settings from `dir`, applies `f` and saves them.
@@ -104,6 +119,15 @@ mod tests {
         assert_eq!(s.recent_dirs.len(), RECENT_LIMIT);
         assert_eq!(s.recent_dirs[0], "/g/15");
         assert_eq!(s.recent_dirs.iter().filter(|d| *d == "/g/15").count(), 1);
+    }
+
+    #[test]
+    fn set_tab_name_trims_and_removes_empty_names() {
+        let mut s = Settings::default();
+        s.set_tab_name("/g/a", "  Alpha ");
+        assert_eq!(s.tab_names.get("/g/a").map(String::as_str), Some("Alpha"));
+        s.set_tab_name("/g/a", " ");
+        assert!(s.tab_names.is_empty());
     }
 
     #[test]

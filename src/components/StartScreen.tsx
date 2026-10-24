@@ -1,8 +1,11 @@
 import { FolderOpen, FolderPlus, History, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { dirLabels } from "@/lib/paths";
 
 interface Props {
   recent: string[];
+  // The names that the user gives to tabs, by galley path.
+  names: Record<string, string>;
   onOpen: () => void;
   onCreate: () => void;
   onOpenRecent: (path: string) => void;
@@ -10,7 +13,8 @@ interface Props {
   onRemoveRecent: (path: string) => void;
 }
 
-export function StartScreen({ recent, onOpen, onCreate, onOpenRecent, onRemoveRecent }: Props) {
+export function StartScreen({ recent, names, onOpen, onCreate, onOpenRecent, onRemoveRecent }: Props) {
+  const labels = dirLabels(recent);
   return (
     <div className="flex h-full items-center justify-center p-6">
       <div className="w-full max-w-md space-y-6">
@@ -35,14 +39,14 @@ export function StartScreen({ recent, onOpen, onCreate, onOpenRecent, onRemoveRe
               Recent
             </h2>
             <ul>
-              {recent.map((d) => (
+              {recent.map((d, i) => (
                 <li key={d} className="group flex items-center rounded hover:bg-muted">
                   <button
                     className="min-w-0 flex-1 truncate px-2 py-1 text-left text-sm"
                     title={d}
                     onClick={() => onOpenRecent(d)}
                   >
-                    <span className="font-medium">{d.split(/[\\/]/).pop()}</span>
+                    <span className="font-medium">{names[d] ?? labels[i]}</span>
                     <span className="ml-2 text-xs text-muted-foreground">{d}</span>
                   </button>
                   <Button

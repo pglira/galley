@@ -27,6 +27,8 @@ export interface Selection {
 
 interface Props {
   galley: Galley | null;
+  // The name of the galley, as its tab shows it.
+  name: string;
   selection: Selection | null;
   onSelect: (s: Selection) => void;
   onOpenDir: () => void;
@@ -57,6 +59,7 @@ interface Confirm {
 
 export function DocumentTree({
   galley,
+  name,
   selection,
   onSelect,
   onOpenDir,
@@ -91,13 +94,12 @@ export function DocumentTree({
     });
   };
 
-  const dirName = galley?.path.split(/[\\/]/).pop() ?? "";
 
   return (
     <div className="flex h-full min-h-0 w-full flex-col border-r bg-sidebar text-sidebar-foreground">
       <div className="flex h-9 shrink-0 items-center justify-between border-b px-3">
         <span className="truncate text-xs font-semibold tracking-wide uppercase" title={galley?.path}>
-          {dirName || "Galley"}
+          {name || "Galley"}
         </span>
         <div className="flex shrink-0 items-center">
           {galley?.has_rules && (
@@ -105,7 +107,12 @@ export function DocumentTree({
               <ScrollText />
             </Button>
           )}
-          <Button variant="ghost" size="icon-xs" onClick={onOpenDir} title="Open a galley directory">
+          <Button
+            variant="ghost"
+            size="icon-xs"
+            onClick={onOpenDir}
+            title="Open a galley directory in a new tab (Ctrl O)"
+          >
             <FolderOpen />
           </Button>
         </div>
