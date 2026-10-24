@@ -285,6 +285,8 @@
   resize: vertical;
   padding: calc(0.5 * var(--doc-rem)) calc(0.75 * var(--doc-rem));
   font: inherit;
+  /* A line height near the font size keeps the caret at one height on all lines. */
+  line-height: 1.4;
   color: inherit;
   background: transparent;
   border: 1.5px solid color-mix(in oklch, currentColor 35%, transparent);
@@ -314,6 +316,19 @@
 /* Images scale with the text size, as in a browser. */
 .markdown-body img { cursor: zoom-in; zoom: var(--doc-zoom, 1); }
 .paper-dark { --primary: oklch(0.72 0.17 303); }
+
+/* Form controls and scroll bars on the paper use the tone of the paper. */
+.paper-light { color-scheme: light; }
+.paper-dark { color-scheme: dark; }
+.paper ::-webkit-scrollbar { width: 10px; height: 10px; background: transparent; }
+.paper ::-webkit-scrollbar-thumb {
+  background: color-mix(in oklch, var(--foreground) 25%, transparent);
+  background-clip: padding-box;
+  border: 2px solid transparent;
+  border-radius: 5px;
+}
+.paper ::-webkit-scrollbar-thumb:hover { background-color: color-mix(in oklch, var(--foreground) 40%, transparent); }
+.paper ::-webkit-scrollbar-corner { background: transparent; }
 
 /* Print: only the document in #print-root (src/lib/print.ts) prints. */
 #print-root { display: none; }
