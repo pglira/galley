@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { ChevronDown, ChevronRight, Ellipsis, FolderOpen, MessageSquare, ScrollText, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { ResizeHandle } from "@/components/ResizeHandle";
 import {
   Dialog,
   DialogContent,
@@ -16,6 +17,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
+import { usePreferences } from "@/lib/preferences";
 import type { Galley, Document } from "@/lib/tauri";
 
 export interface Selection {
@@ -36,6 +38,8 @@ interface Props {
   search?: React.ReactNode;
   // Search results, which replace the tree when set.
   results?: React.ReactNode;
+  // The table of contents of the shown document, below the tree.
+  contents?: React.ReactNode;
 }
 
 // Splits `2026-10-09_1430_cache-design` into a title and a date.
@@ -62,7 +66,9 @@ export function DocumentTree({
   onDeleteSnapshots,
   search,
   results,
+  contents,
 }: Props) {
+  const { contentsHeight, setContentsHeight, resetContentsHeight } = usePreferences();
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
   const [confirm, setConfirm] = useState<Confirm | null>(null);
 
@@ -219,6 +225,22 @@ export function DocumentTree({
           );
         })}
       </div>
+
+      {contents && (
+        <>
+          <ResizeHandle side="top" onResize={setContentsHeight} onReset={resetContentsHeight} />
+          {/* The tree keeps at least 6rem of the height. */}
+          <div
+            className="flex min-h-0 shrink-0 flex-col border-t"
+            style={{ height: contentsHeight, maxHeight: "calc(100% - 6rem)" }}
+          >
+            <div className="flex h-8 shrink-0 items-center px-3 text-xs font-semibold tracking-wide uppercase">
+              Contents
+            </div>
+            <div className="min-h-0 flex-1 overflow-auto">{contents}</div>
+          </div>
+        </>
+      )}
 
       <Dialog open={confirm != null} onOpenChange={(o) => !o && setConfirm(null)}>
         <DialogContent>

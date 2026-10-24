@@ -9,6 +9,8 @@ export interface Preferences {
   paperWidth: number;
   sidebarLeftWidth: number;
   sidebarRightWidth: number;
+  // Height of the table of contents below the document tree, in CSS pixels.
+  contentsHeight: number;
 }
 
 const STORAGE_KEY = "galley:preferences";
@@ -19,6 +21,7 @@ const DEFAULTS: Preferences = {
   paperWidth: 860,
   sidebarLeftWidth: 256,
   sidebarRightWidth: 300,
+  contentsHeight: 300,
 };
 
 export const ZOOM_MIN = 0.5;
@@ -35,6 +38,8 @@ export const SIDEBAR_LEFT_DEFAULT = 256;
 export const SIDEBAR_RIGHT_MIN = 220;
 export const SIDEBAR_RIGHT_MAX = 520;
 export const SIDEBAR_RIGHT_DEFAULT = 300;
+export const CONTENTS_HEIGHT_MIN = 60;
+export const CONTENTS_HEIGHT_DEFAULT = 300;
 
 interface Ctx extends Preferences {
   setCopyAsMarkdown: (v: boolean) => void;
@@ -44,6 +49,8 @@ interface Ctx extends Preferences {
   setPaperWidth: (width: number) => void;
   setSidebarWidth: (side: "left" | "right", width: number) => void;
   resetSidebarWidth: (side: "left" | "right") => void;
+  setContentsHeight: (height: number) => void;
+  resetContentsHeight: () => void;
 }
 
 const PreferencesContext = React.createContext<Ctx | null>(null);
@@ -72,6 +79,7 @@ function persistToBackend(prefs: Preferences) {
       paper_width: prefs.paperWidth,
       sidebar_left_width: prefs.sidebarLeftWidth,
       sidebar_right_width: prefs.sidebarRightWidth,
+      contents_height: prefs.contentsHeight,
       copy_as_markdown: prefs.copyAsMarkdown,
     }).catch(() => {});
   }, 300);
@@ -93,6 +101,7 @@ export function PreferencesProvider({ children }: { children: React.ReactNode })
         if (backend.paper_width != null) next.paperWidth = backend.paper_width;
         if (backend.sidebar_left_width != null) next.sidebarLeftWidth = backend.sidebar_left_width;
         if (backend.sidebar_right_width != null) next.sidebarRightWidth = backend.sidebar_right_width;
+        if (backend.contents_height != null) next.contentsHeight = backend.contents_height;
         if (backend.copy_as_markdown != null) next.copyAsMarkdown = backend.copy_as_markdown;
         persist(next);
         return next;
@@ -158,6 +167,17 @@ export function PreferencesProvider({ children }: { children: React.ReactNode })
     [update],
   );
 
+  // The maximum height depends on the height of the sidebar; the layout limits it.
+  const setContentsHeight = React.useCallback(
+    (height: number) => update((p) => ({ ...p, contentsHeight: Math.round(Math.max(CONTENTS_HEIGHT_MIN, height)) })),
+    [update],
+  );
+
+  const resetContentsHeight = React.useCallback(
+    () => update((p) => ({ ...p, contentsHeight: CONTENTS_HEIGHT_DEFAULT })),
+    [update],
+  );
+
   const value = React.useMemo(
     () => ({
       ...prefs,
@@ -168,8 +188,21 @@ export function PreferencesProvider({ children }: { children: React.ReactNode })
       setPaperWidth,
       setSidebarWidth,
       resetSidebarWidth,
+      setContentsHeight,
+      resetContentsHeight,
     }),
-    [prefs, setCopyAsMarkdown, zoomIn, zoomOut, zoomReset, setPaperWidth, setSidebarWidth, resetSidebarWidth],
+    [
+      prefs,
+      setCopyAsMarkdown,
+      zoomIn,
+      zoomOut,
+      zoomReset,
+      setPaperWidth,
+      setSidebarWidth,
+      resetSidebarWidth,
+      setContentsHeight,
+      resetContentsHeight,
+    ],
   );
 
   return (

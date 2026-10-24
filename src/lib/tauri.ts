@@ -38,6 +38,7 @@ export interface PreferencesPayload {
   paper_width: number | null;
   sidebar_left_width: number | null;
   sidebar_right_width: number | null;
+  contents_height: number | null;
   copy_as_markdown: boolean | null;
 }
 

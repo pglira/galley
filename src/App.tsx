@@ -15,6 +15,7 @@ import { ImageViewer } from "@/components/ImageViewer";
 import { StartScreen } from "@/components/StartScreen";
 import { RulesEditor } from "@/components/RulesEditor";
 import { SearchBox, SearchResults } from "@/components/SearchPanel";
+import { TableOfContents } from "@/components/TableOfContents";
 import { tauri, assetUrl, type Galley, type Document, type SearchHit } from "@/lib/tauri";
 import { parseAnnotations, serializeAnnotations, type Annotation } from "@/lib/annotations";
 import { buildPrompt, copyText } from "@/lib/prompt";
@@ -545,6 +546,7 @@ function AppShell() {
           results={
             allQuery.trim() ? <SearchResults query={allQuery} galley={galley} onOpenHit={onOpenHit} /> : null
           }
+          contents={content ? <TableOfContents articleRef={articleRef} contentNonce={contentNonce} /> : null}
         />
       </div>
       <ResizeHandle

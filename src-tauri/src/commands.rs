@@ -145,6 +145,7 @@ pub struct PreferencesPayload {
     pub paper_width: Option<u32>,
     pub sidebar_left_width: Option<u32>,
     pub sidebar_right_width: Option<u32>,
+    pub contents_height: Option<u32>,
     pub copy_as_markdown: Option<bool>,
 }
 
@@ -155,6 +156,7 @@ pub fn save_preferences(prefs: PreferencesPayload) -> AppResult<()> {
         s.paper_width = prefs.paper_width;
         s.sidebar_left_width = prefs.sidebar_left_width;
         s.sidebar_right_width = prefs.sidebar_right_width;
+        s.contents_height = prefs.contents_height;
         s.copy_as_markdown = prefs.copy_as_markdown;
     })
 }
@@ -167,6 +169,7 @@ pub fn load_preferences() -> PreferencesPayload {
         paper_width: s.paper_width,
         sidebar_left_width: s.sidebar_left_width,
         sidebar_right_width: s.sidebar_right_width,
+        contents_height: s.contents_height,
         copy_as_markdown: s.copy_as_markdown,
     }
 }

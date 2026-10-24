@@ -15,6 +15,9 @@ pub struct Settings {
     pub sidebar_left_width: Option<u32>,
     #[serde(default)]
     pub sidebar_right_width: Option<u32>,
+    /// Height of the table of contents below the document tree.
+    #[serde(default)]
+    pub contents_height: Option<u32>,
     #[serde(default)]
     pub copy_as_markdown: Option<bool>,
 }
