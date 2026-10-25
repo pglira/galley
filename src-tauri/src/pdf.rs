@@ -7,8 +7,21 @@
 use crate::error::{AppError, AppResult};
 use tauri::WebviewWindow;
 
+/// The page setup of a PDF export.
+#[derive(Debug, Clone, serde::Deserialize)]
+pub struct PageOptions {
+    /// A libpaper paper name such as `a4` or `letter`, or `system` for the
+    /// paper size of the system.
+    pub paper: String,
+    pub landscape: bool,
+    /// Top and bottom margin in mm.
+    pub margin_vertical: f64,
+    /// Left and right margin in mm.
+    pub margin_horizontal: f64,
+}
+
 #[cfg(target_os = "linux")]
-pub async fn export(window: WebviewWindow, path: std::path::PathBuf) -> AppResult<()> {
+pub async fn export(window: WebviewWindow, path: std::path::PathBuf, options: PageOptions) -> AppResult<()> {
     use std::sync::mpsc;
     use webkit2gtk::PrintOperationExt;
 
@@ -21,12 +34,24 @@ pub async fn export(window: WebviewWindow, path: std::path::PathBuf) -> AppResul
             settings.set_printer(&glib::dgettext(Some("gtk30"), "Print to File"));
             settings.set(gtk::PRINT_SETTINGS_OUTPUT_FILE_FORMAT, Some("pdf"));
             settings.set(gtk::PRINT_SETTINGS_OUTPUT_URI, Some(&uri));
+            let paper = if options.paper == "system" {
+                paper_name()
+            } else {
+                gtk_paper_name(&options.paper).map(String::from)
+            };
+            let orientation = if options.landscape {
+                gtk::PageOrientation::Landscape
+            } else {
+                gtk::PageOrientation::Portrait
+            };
+            settings.set_orientation(orientation);
             let page = gtk::PageSetup::new();
-            page.set_paper_size(&gtk::PaperSize::new(paper_name().as_deref()));
-            page.set_top_margin(16.0, gtk::Unit::Mm);
-            page.set_bottom_margin(16.0, gtk::Unit::Mm);
-            page.set_left_margin(14.0, gtk::Unit::Mm);
-            page.set_right_margin(14.0, gtk::Unit::Mm);
+            page.set_paper_size(&gtk::PaperSize::new(paper.as_deref()));
+            page.set_orientation(orientation);
+            page.set_top_margin(options.margin_vertical, gtk::Unit::Mm);
+            page.set_bottom_margin(options.margin_vertical, gtk::Unit::Mm);
+            page.set_left_margin(options.margin_horizontal, gtk::Unit::Mm);
+            page.set_right_margin(options.margin_horizontal, gtk::Unit::Mm);
             let op = webkit2gtk::PrintOperation::new(&webview.inner());
             op.set_print_settings(&settings);
             op.set_page_setup(&page);
@@ -80,7 +105,7 @@ fn gtk_paper_name(libpaper_name: &str) -> Option<&'static str> {
 }
 
 #[cfg(not(target_os = "linux"))]
-pub async fn export(_window: WebviewWindow, _path: std::path::PathBuf) -> AppResult<()> {
+pub async fn export(_window: WebviewWindow, _path: std::path::PathBuf, _options: PageOptions) -> AppResult<()> {
     Err(AppError::Unsupported)
 }
 

@@ -1,6 +1,7 @@
 import * as React from "react";
 import { tauri } from "@/lib/tauri";
 import { DOC_FONT_DEFAULT, docFont } from "@/lib/fonts";
+import { PDF_DEFAULTS, normalizePdfOptions, type PdfOptions } from "@/lib/pdfOptions";
 
 export interface Preferences {
   copyAsMarkdown: boolean;
@@ -14,6 +15,8 @@ export interface Preferences {
   contentsHeight: number;
   // The id of the font of the rendered document (`src/lib/fonts.ts`).
   docFont: string;
+  // The options of the PDF export.
+  pdf: PdfOptions;
 }
 
 const STORAGE_KEY = "galley:preferences";
@@ -26,6 +29,7 @@ const DEFAULTS: Preferences = {
   sidebarRightWidth: 300,
   contentsHeight: 300,
   docFont: DOC_FONT_DEFAULT,
+  pdf: PDF_DEFAULTS,
 };
 
 export const ZOOM_MIN = 0.5;
@@ -48,6 +52,7 @@ export const CONTENTS_HEIGHT_DEFAULT = 300;
 interface Ctx extends Preferences {
   setCopyAsMarkdown: (v: boolean) => void;
   setDocFont: (id: string) => void;
+  setPdf: (options: PdfOptions) => void;
   zoomIn: () => void;
   zoomOut: () => void;
   zoomReset: () => void;
@@ -65,7 +70,8 @@ function load(): Preferences {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (!raw) return DEFAULTS;
-    return { ...DEFAULTS, ...JSON.parse(raw) };
+    const stored = JSON.parse(raw);
+    return { ...DEFAULTS, ...stored, pdf: normalizePdfOptions(stored.pdf) };
   } catch {
     return DEFAULTS;
   }
@@ -87,6 +93,7 @@ function persistToBackend(prefs: Preferences) {
       contents_height: prefs.contentsHeight,
       copy_as_markdown: prefs.copyAsMarkdown,
       doc_font: prefs.docFont,
+      pdf: prefs.pdf,
     }).catch(() => {});
   }, 300);
 }
@@ -110,6 +117,7 @@ export function PreferencesProvider({ children }: { children: React.ReactNode })
         if (backend.contents_height != null) next.contentsHeight = backend.contents_height;
         if (backend.copy_as_markdown != null) next.copyAsMarkdown = backend.copy_as_markdown;
         if (backend.doc_font != null) next.docFont = backend.doc_font;
+        if (backend.pdf != null) next.pdf = normalizePdfOptions(backend.pdf);
         persist(next);
         return next;
       });
@@ -132,6 +140,11 @@ export function PreferencesProvider({ children }: { children: React.ReactNode })
 
   const setDocFont = React.useCallback(
     (id: string) => update((p) => ({ ...p, docFont: id })),
+    [update],
+  );
+
+  const setPdf = React.useCallback(
+    (options: PdfOptions) => update((p) => ({ ...p, pdf: normalizePdfOptions(options) })),
     [update],
   );
 
@@ -204,6 +217,7 @@ export function PreferencesProvider({ children }: { children: React.ReactNode })
       ...prefs,
       setCopyAsMarkdown,
       setDocFont,
+      setPdf,
       zoomIn,
       zoomOut,
       zoomReset,
@@ -217,6 +231,7 @@ export function PreferencesProvider({ children }: { children: React.ReactNode })
       prefs,
       setCopyAsMarkdown,
       setDocFont,
+      setPdf,
       zoomIn,
       zoomOut,
       zoomReset,

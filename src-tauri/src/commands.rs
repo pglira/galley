@@ -174,11 +174,11 @@ pub fn hash_files(root: String, paths: Vec<String>, open: State<'_, OpenDirs>) -
     Ok(galley::hash_files(&open.get(&root)?, &paths))
 }
 
-/// Saves the page as a PDF file at `path`. The frontend prepares the page
-/// for print first.
+/// Saves the page as a PDF file at `path` with the page setup `page`. The
+/// frontend prepares the page for print first.
 #[tauri::command]
-pub async fn export_pdf(path: String, window: tauri::WebviewWindow) -> AppResult<()> {
-    crate::pdf::export(window, PathBuf::from(path)).await
+pub async fn export_pdf(path: String, page: crate::pdf::PageOptions, window: tauri::WebviewWindow) -> AppResult<()> {
+    crate::pdf::export(window, PathBuf::from(path), page).await
 }
 
 #[derive(serde::Serialize, serde::Deserialize)]
@@ -190,6 +190,7 @@ pub struct PreferencesPayload {
     pub contents_height: Option<u32>,
     pub copy_as_markdown: Option<bool>,
     pub doc_font: Option<String>,
+    pub pdf: Option<serde_json::Value>,
 }
 
 #[tauri::command]
@@ -202,6 +203,7 @@ pub fn save_preferences(prefs: PreferencesPayload) -> AppResult<()> {
         s.contents_height = prefs.contents_height;
         s.copy_as_markdown = prefs.copy_as_markdown;
         s.doc_font = prefs.doc_font;
+        s.pdf = prefs.pdf;
     })
 }
 
@@ -216,5 +218,6 @@ pub fn load_preferences() -> PreferencesPayload {
         contents_height: s.contents_height,
         copy_as_markdown: s.copy_as_markdown,
         doc_font: s.doc_font,
+        pdf: s.pdf,
     }
 }

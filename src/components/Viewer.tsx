@@ -2,6 +2,7 @@ import * as React from "react";
 import { renderMarkdown } from "@/lib/markdown";
 import { enhance } from "@/lib/enhance";
 import { exportPdf } from "@/lib/print";
+import type { PdfOptions } from "@/lib/pdfOptions";
 import { handleCopyAsMarkdown } from "@/lib/copyAsMarkdown";
 import { useTheme } from "@/lib/theme";
 import { usePreferences } from "@/lib/preferences";
@@ -53,7 +54,7 @@ export interface Choice {
 export interface ViewerHandle {
   // Exports the document as it shows (with the diff, if on) as a PDF on white
   // paper. Returns the path of the saved file, or null.
-  exportPdf: (name: string) => Promise<string | null>;
+  exportPdf: (name: string, options: PdfOptions) => Promise<string | null>;
 }
 
 interface Props {
@@ -489,7 +490,7 @@ export function Viewer({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [content.source, copyAsMarkdown, compare]);
 
-  React.useImperativeHandle(handleRef, () => ({ exportPdf: (name) => exportPdf(html, name) }), [html]);
+  React.useImperativeHandle(handleRef, () => ({ exportPdf: (name, options) => exportPdf(html, name, options) }), [html]);
 
   // A stable object, so that React sets innerHTML only when the HTML changes.
   // Otherwise each re-render would remove the highlighting and the marks.

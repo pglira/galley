@@ -57,7 +57,7 @@ galley path/to/galley-directory
 - Edit `GALLEY.md` with the scroll icon above the document list. **Revert to default** replaces the text with the default `GALLEY.md` of the installed Galley version. Save with `Ctrl Enter`.
 - Annotate the selected text with the "Annotate" button or `Ctrl M`. Add a general comment with the plus icon in the annotations panel or `Ctrl Shift M`. Save a comment with `Ctrl Enter`, cancel with `Esc`.
 - Reload the selected snapshot with the reload icon in the toolbar (`F5`). Galley reads the document, its annotations and its images again. Galley also polls the directory every 2 s, but a reload also loads images that changed under the same name.
-- Export the document as a PDF with the export icon in the toolbar (`Ctrl P`). The PDF shows the document as it shows on screen, with the diff if it is on, on white paper. On Linux, Galley saves the PDF directly; the paper size comes from `$PAPERSIZE` or `/etc/papersize`, else from the locale. On other systems, the print dialog opens.
+- Export the document as a PDF with the export icon in the toolbar (`Ctrl P`). The PDF shows the document as it shows on screen, with the diff if it is on, on white paper. A dialog first asks for the paper size, the orientation, the margins and the scale of the content; Galley remembers the choice. On Linux, Galley saves the PDF directly; the paper size "System" comes from `$PAPERSIZE` or `/etc/papersize`, else from the locale. On other systems, the print dialog opens.
 - Links to web pages open in the browser. Remote images do not load: a document can only show images from the galley directory.
 
 ## Develop

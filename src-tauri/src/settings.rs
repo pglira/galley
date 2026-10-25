@@ -24,6 +24,9 @@ pub struct Settings {
     /// The id of the font of the rendered document.
     #[serde(default)]
     pub doc_font: Option<String>,
+    /// The options of the PDF export. The frontend checks the values.
+    #[serde(default)]
+    pub pdf: Option<serde_json::Value>,
     /// Names that the user gives to the tabs of galley directories, by path.
     #[serde(default)]
     pub tab_names: BTreeMap<String, String>,

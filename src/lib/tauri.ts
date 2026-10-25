@@ -41,6 +41,16 @@ export interface PreferencesPayload {
   contents_height: number | null;
   copy_as_markdown: boolean | null;
   doc_font: string | null;
+  pdf: unknown;
+}
+
+// The page setup of a PDF export. `paper` is a libpaper paper name or
+// "system"; the margins are in mm.
+export interface PageOptions {
+  paper: string;
+  landscape: boolean;
+  margin_vertical: number;
+  margin_horizontal: number;
 }
 
 export const tauri = {
@@ -67,7 +77,7 @@ export const tauri = {
     invoke<void>("delete_snapshots", { root, document: doc, names }),
   search: (root: string, query: string) => invoke<SearchResult>("search", { root, query }),
   hashFiles: (root: string, paths: string[]) => invoke<(string | null)[]>("hash_files", { root, paths }),
-  exportPdf: (path: string) => invoke<void>("export_pdf", { path }),
+  exportPdf: (path: string, page: PageOptions) => invoke<void>("export_pdf", { path, page }),
   savePreferences: (prefs: PreferencesPayload) => invoke<void>("save_preferences", { prefs }),
   loadPreferences: () => invoke<PreferencesPayload>("load_preferences"),
 };

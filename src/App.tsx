@@ -14,6 +14,8 @@ import { AnnotationsPanel, type Draft } from "@/components/AnnotationsPanel";
 import { ImageViewer } from "@/components/ImageViewer";
 import { StartScreen } from "@/components/StartScreen";
 import { RulesEditor } from "@/components/RulesEditor";
+import { PdfExportDialog } from "@/components/PdfExportDialog";
+import type { PdfOptions } from "@/lib/pdfOptions";
 import { SearchBox, SearchResults } from "@/components/SearchPanel";
 import { TableOfContents } from "@/components/TableOfContents";
 import { TabBar } from "@/components/TabBar";
@@ -77,6 +79,7 @@ function GalleyView({ initial, name, shown, onOpenDir }: GalleyViewProps) {
   const [reloadNonce, setReloadNonce] = useState(0);
   const [gallery, setGallery] = useState<{ images: DocImage[]; index: number } | null>(null);
   const [rulesOpen, setRulesOpen] = useState(false);
+  const [pdfOpen, setPdfOpen] = useState(false);
   const articleRef = useRef<HTMLElement>(null);
   const viewerRef = useRef<ViewerHandle>(null);
   const exportPdfRef = useRef<(() => void) | null>(null);
@@ -84,7 +87,7 @@ function GalleyView({ initial, name, shown, onOpenDir }: GalleyViewProps) {
   const annotateRef = useRef<(() => void) | null>(null);
   const addGeneralRef = useRef<(() => void) | null>(null);
   const galleyJson = useRef(JSON.stringify(initial));
-  const { sidebarLeftWidth, sidebarRightWidth, setSidebarWidth, resetSidebarWidth } =
+  const { sidebarLeftWidth, sidebarRightWidth, setSidebarWidth, resetSidebarWidth, pdf, setPdf } =
     usePreferences();
 
   const doc: Document | null = galley?.documents.find((r) => r.name === selection?.document) ?? null;
@@ -415,16 +418,18 @@ function GalleyView({ initial, name, shown, onOpenDir }: GalleyViewProps) {
 
   // The PDF title is also the default file name, for example
   // "2026-10-09_1430_cache-design_04" or "..._04_changes-since-03".
-  const exportPdf =
-    doc && snapshot && content
-      ? () => {
-          const name = `${doc.name}_${snapshot.name}${compare ? `_changes-since-${reference}` : ""}`;
-          viewerRef.current
-            ?.exportPdf(name)
-            .then((path) => path && setNotice(`Saved ${path}`))
-            .catch((e) => setError(String(e)));
-        }
-      : null;
+  const runExportPdf = (options: PdfOptions) => {
+    setPdfOpen(false);
+    setPdf(options);
+    if (!doc || !snapshot) return;
+    const name = `${doc.name}_${snapshot.name}${compare ? `_changes-since-${reference}` : ""}`;
+    viewerRef.current
+      ?.exportPdf(name, options)
+      .then((path) => path && setNotice(`Saved ${path}`))
+      .catch((e) => setError(String(e)));
+  };
+  // Opens the options of the PDF export; the export starts from there.
+  const exportPdf = doc && snapshot && content ? () => setPdfOpen(true) : null;
   exportPdfRef.current = exportPdf;
 
   const [copied, setCopied] = useState(false);
@@ -607,6 +612,7 @@ function GalleyView({ initial, name, shown, onOpenDir }: GalleyViewProps) {
         onSaved={() => setNotice("Saved GALLEY.md")}
         onError={setError}
       />
+      <PdfExportDialog open={pdfOpen} options={pdf} onClose={() => setPdfOpen(false)} onExport={runExportPdf} />
     </div>
   );
 }
