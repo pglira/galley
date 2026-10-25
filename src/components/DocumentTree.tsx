@@ -16,7 +16,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { cn } from "@/lib/utils";
+import { cn, formatTime } from "@/lib/utils";
 import { usePreferences } from "@/lib/preferences";
 import type { Galley, Document } from "@/lib/tauri";
 
@@ -185,7 +185,13 @@ export function DocumentTree({
                       )}
                       onClick={() => onSelect({ document: doc.name, snapshot: snap.name })}
                     >
-                      <span className="flex-1">Snapshot {snap.name}</span>
+                      <span className="shrink-0">Snapshot {snap.name}</span>
+                      <span
+                        className="min-w-0 flex-1 truncate text-[11px] font-normal text-muted-foreground"
+                        title="Modification time of document.md"
+                      >
+                        {formatTime(snap.document_modified)}
+                      </span>
                       {snap.annotations_modified != null && (
                         <MessageSquare className="size-3 text-primary" aria-label="Has annotations" />
                       )}

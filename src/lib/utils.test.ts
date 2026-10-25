@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { cn } from "./utils";
+import { cn, formatTime } from "./utils";
 
 describe("cn", () => {
   it("merges classes", () => {
@@ -16,5 +16,11 @@ describe("cn", () => {
 
   it("supports conditional via clsx", () => {
     expect(cn({ a: true, b: false })).toBe("a");
+  });
+});
+
+describe("formatTime", () => {
+  it("formats a local time with zero padding", () => {
+    expect(formatTime(new Date(2026, 0, 5, 7, 3).getTime())).toBe("2026-01-05 07:03");
   });
 });
