@@ -82,6 +82,8 @@ function GalleyView({ initial, name, shown, onOpenDir }: GalleyViewProps) {
   const [annotations, setAnnotations] = useState<Annotation[]>([]);
   const [active, setActive] = useState<number | null>(null);
   const [draft, setDraft] = useState<Draft | null>(null);
+  // The visibility of the document tree (left) and of the annotations panel (right).
+  const [sidebars, setSidebars] = useState({ left: true, right: true });
   const [textSel, setTextSel] = useState<TextSelection | null>(null);
   const [searchOpen, setSearchOpen] = useState(false);
   const [findQuery, setFindQuery] = useState("");
@@ -444,10 +446,17 @@ function GalleyView({ initial, name, shown, onOpenDir }: GalleyViewProps) {
       if (e.key === "F5") {
         e.preventDefault();
         reload();
+      } else if (meta && k === "b") {
+        e.preventDefault();
+        setSidebars((s) => (s.left || s.right ? { left: false, right: false } : { left: true, right: true }));
       } else if (meta && e.shiftKey && k === "f") {
         e.preventDefault();
-        allInputRef.current?.focus();
-        allInputRef.current?.select();
+        setSidebars((s) => ({ ...s, left: true }));
+        // The search field is focusable only after the tree shows again.
+        requestAnimationFrame(() => {
+          allInputRef.current?.focus();
+          allInputRef.current?.select();
+        });
       } else if (meta && k === "f") {
         e.preventDefault();
         setSearchOpen(true);
@@ -506,6 +515,11 @@ function GalleyView({ initial, name, shown, onOpenDir }: GalleyViewProps) {
     return () => clearTimeout(id);
   }, [copied]);
 
+  // The annotations panel shows while a draft is open.
+  useEffect(() => {
+    if (draft) setSidebars((s) => (s.right ? s : { ...s, right: true }));
+  }, [draft]);
+
   // Opens a draft for the selected text.
   const annotateSelection = () => {
     if (!textSel || textSel.removed) return;
@@ -522,7 +536,11 @@ function GalleyView({ initial, name, shown, onOpenDir }: GalleyViewProps) {
 
   return (
     <div className="flex h-full">
-      <div className="flex h-full min-h-0 shrink-0" style={{ width: sidebarLeftWidth }}>
+      {/* A hidden sidebar stays mounted and keeps its state. */}
+      <div
+        className={cn("flex h-full min-h-0 shrink-0", !sidebars.left && "hidden")}
+        style={{ width: sidebarLeftWidth }}
+      >
         <DocumentTree
           galley={galley}
           name={name}
@@ -540,11 +558,13 @@ function GalleyView({ initial, name, shown, onOpenDir }: GalleyViewProps) {
           contents={content ? <TableOfContents articleRef={articleRef} contentNonce={contentNonce} /> : null}
         />
       </div>
-      <ResizeHandle
-        side="left"
-        onResize={(w) => setSidebarWidth("left", w)}
-        onReset={() => resetSidebarWidth("left")}
-      />
+      {sidebars.left && (
+        <ResizeHandle
+          side="left"
+          onResize={(w) => setSidebarWidth("left", w)}
+          onReset={() => resetSidebarWidth("left")}
+        />
+      )}
       <div className="flex min-w-0 flex-1 flex-col">
         <Toolbar
           title={title}
@@ -560,6 +580,8 @@ function GalleyView({ initial, name, shown, onOpenDir }: GalleyViewProps) {
           onFind={() => setSearchOpen(true)}
           onReload={snapshot ? reload : null}
           onExportPdf={exportPdf}
+          sidebars={sidebars}
+          onSidebars={setSidebars}
         />
         {error && (
           <div className="flex items-center justify-between border-b bg-destructive/10 px-3 py-1 text-xs text-destructive">
@@ -631,12 +653,17 @@ function GalleyView({ initial, name, shown, onOpenDir }: GalleyViewProps) {
               skip={content?.pdf ? ".pdf-old-page" : undefined}
             />
           </main>
-          <ResizeHandle
-            side="right"
-            onResize={(w) => setSidebarWidth("right", w)}
-            onReset={() => resetSidebarWidth("right")}
-          />
-          <aside className="shrink-0 border-l bg-card/30" style={{ width: sidebarRightWidth }}>
+          {sidebars.right && (
+            <ResizeHandle
+              side="right"
+              onResize={(w) => setSidebarWidth("right", w)}
+              onReset={() => resetSidebarWidth("right")}
+            />
+          )}
+          <aside
+            className={cn("shrink-0 border-l bg-card/30", !sidebars.right && "hidden")}
+            style={{ width: sidebarRightWidth }}
+          >
             <AnnotationsPanel
               enabled={snapshot != null}
               annotations={annotations}

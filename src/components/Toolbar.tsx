@@ -11,7 +11,19 @@ import {
   DropdownMenuRadioGroup,
   DropdownMenuRadioItem,
 } from "@/components/ui/dropdown-menu";
-import { Search, Settings, Minus, Plus, ClipboardCopy, Check, ChevronDown, FileDown, RotateCw } from "lucide-react";
+import {
+  Search,
+  Settings,
+  Minus,
+  Plus,
+  ClipboardCopy,
+  Check,
+  ChevronDown,
+  FileDown,
+  RotateCw,
+  PanelLeft,
+  PanelRight,
+} from "lucide-react";
 import { useTheme, PAPER_PRESETS } from "@/lib/theme";
 import { DOC_FONTS } from "@/lib/fonts";
 import {
@@ -42,6 +54,9 @@ interface Props {
   onReload: (() => void) | null;
   // Null if no document shows.
   onExportPdf: (() => void) | null;
+  // The visibility of the document tree (left) and of the annotations panel (right).
+  sidebars: { left: boolean; right: boolean };
+  onSidebars: (sidebars: { left: boolean; right: boolean }) => void;
 }
 
 export function Toolbar({
@@ -58,6 +73,8 @@ export function Toolbar({
   onFind,
   onReload,
   onExportPdf,
+  sidebars,
+  onSidebars,
 }: Props) {
   const { paper, setPaper } = useTheme();
   const {
@@ -76,7 +93,24 @@ export function Toolbar({
 
   return (
     <header className="flex h-9 shrink-0 items-center justify-between gap-3 border-b bg-card/40 px-3">
-      <div className="truncate text-xs text-muted-foreground">{title}</div>
+      <div className="flex min-w-0 items-center gap-2">
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button
+              onClick={() => onSidebars({ ...sidebars, left: !sidebars.left })}
+              variant="ghost"
+              size="icon-xs"
+              className={cn(!sidebars.left && "text-muted-foreground")}
+              aria-label={sidebars.left ? "Hide document list" : "Show document list"}
+              aria-pressed={sidebars.left}
+            >
+              <PanelLeft />
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent>{sidebars.left ? "Hide" : "Show"} document list (Ctrl B: both sidebars)</TooltipContent>
+        </Tooltip>
+        <div className="truncate text-xs text-muted-foreground">{title}</div>
+      </div>
       <div className="flex shrink-0 items-center gap-1">
         <label
           className={cn("flex items-center gap-2 text-[13px]", noReference && "opacity-50")}
@@ -295,6 +329,21 @@ export function Toolbar({
             </DropdownMenuRadioGroup>
           </DropdownMenuContent>
         </DropdownMenu>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button
+              onClick={() => onSidebars({ ...sidebars, right: !sidebars.right })}
+              variant="ghost"
+              size="icon-xs"
+              className={cn(!sidebars.right && "text-muted-foreground")}
+              aria-label={sidebars.right ? "Hide annotations" : "Show annotations"}
+              aria-pressed={sidebars.right}
+            >
+              <PanelRight />
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent>{sidebars.right ? "Hide" : "Show"} annotations (Ctrl B: both sidebars)</TooltipContent>
+        </Tooltip>
       </div>
     </header>
   );
