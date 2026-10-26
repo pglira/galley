@@ -13,6 +13,7 @@ describe("prompt", () => {
     const p = buildPrompt("2026-10-09_1430_x", "01", ["01", "02"]);
     expect(p).toContain("`2026-10-09_1430_x/01/annotations.md`");
     expect(p).toContain("`2026-10-09_1430_x/03/`");
+    expect(p).toContain("short sentences");
     expect(p).not.toMatch(/(^|\s|`)\//);
   });
 });

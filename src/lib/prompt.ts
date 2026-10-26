@@ -14,7 +14,8 @@ export function buildPrompt(doc: string, snapshot: string, allSnapshots: string[
   const next = nextSnapshotName(allSnapshots);
   return (
     `Read the annotations in \`${doc}/${snapshot}/annotations.md\` in the galley directory. ` +
-    `Address them in the new snapshot \`${doc}/${next}/\`, as described in \`GALLEY.md\`.`
+    `Address them in the new snapshot \`${doc}/${next}/\`, as described in \`GALLEY.md\`. ` +
+    `Keep your reply in the chat to one to three short sentences.`
   );
 }
 

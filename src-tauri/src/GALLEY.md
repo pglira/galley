@@ -70,6 +70,14 @@ If you need a decision or information from the reviewer, ask for it in the docum
 - The reviewer answers in `annotations.md`. An annotation of a question has the question as its quote. A checkbox answer has a `Checked:` line with the option and its question as the context. A text field answer has an `Answer:` line with the question.
 - In the next snapshot, use the answers and remove the answered questions.
 
+## Keep the chat short
+
+The reviewer reads the documents, not the chat. Put all content into the document.
+
+- After a snapshot, reply in the chat with one to three short sentences: the path of the new snapshot and, if necessary, a short note, for example a problem that blocks you.
+- Do not repeat the content of the document in the chat. Do not list the annotations or how you addressed them.
+- Ask questions in the document, not in the chat. Ask in the chat only if you cannot write the snapshot without an answer.
+
 ## Rules
 
 - Never change an existing snapshot. Always make a new snapshot.
