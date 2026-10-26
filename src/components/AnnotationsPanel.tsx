@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Pencil, Plus, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -9,7 +9,12 @@ export interface Draft {
   index: number | null;
   quote: string;
   context?: string;
+  page?: number;
   image?: string;
+  // The path of the screenshot of a region, relative to the snapshot.
+  region?: string;
+  // The screenshot of a new region, which is written on save.
+  png?: Uint8Array;
   checked?: boolean;
   answer?: boolean;
   comment: string;
@@ -28,12 +33,36 @@ interface Props {
   imageUrl: (path: string) => string;
 }
 
-function Quote({ text }: { text: string }) {
+function Quote({ text, page }: { text: string; page?: number }) {
   return (
-    <blockquote className="mb-1.5 line-clamp-4 border-l-2 border-primary/60 pl-2 text-xs whitespace-pre-line text-muted-foreground italic">
-      {text}
-    </blockquote>
+    <div className="mb-1.5 border-l-2 border-primary/60 pl-2 text-xs text-muted-foreground">
+      {page && <p className="mb-0.5 font-medium not-italic">Page {page}</p>}
+      <blockquote className="line-clamp-4 whitespace-pre-line italic">{text}</blockquote>
+    </div>
   );
+}
+
+function RegionRef({ url, page, text }: { url: string; page?: number; text?: string }) {
+  return (
+    <div className="mb-1.5 border-l-2 border-primary/60 pl-2 text-xs text-muted-foreground">
+      <img src={url} alt="" className="mb-1 max-h-40 max-w-full border object-contain" />
+      {page && <p className="mb-0.5 font-medium">Page {page}</p>}
+      {text && <p className="line-clamp-2 italic">{text}</p>}
+    </div>
+  );
+}
+
+// The URL of the screenshot of a draft: the new PNG, else the saved file.
+function useRegionUrl(draft: Draft, imageUrl: (path: string) => string): string {
+  const [blobUrl, setBlobUrl] = useState<string | null>(null);
+  useEffect(() => {
+    if (!draft.png) return setBlobUrl(null);
+    const url = URL.createObjectURL(new Blob([draft.png], { type: "image/png" }));
+    setBlobUrl(url);
+    return () => URL.revokeObjectURL(url);
+  }, [draft.png]);
+  if (draft.png) return blobUrl ?? "";
+  return draft.region ? imageUrl(draft.region) : "";
 }
 
 function ImageRef({ path, url }: { path: string; url: string }) {
@@ -75,6 +104,7 @@ function Editor({
 }: Pick<Props, "onDraft" | "onSave" | "imageUrl"> & { draft: Draft }) {
   const ref = useRef<HTMLTextAreaElement>(null);
   useEffect(() => ref.current?.focus(), []);
+  const regionUrl = useRegionUrl(draft, imageUrl);
   // A checkbox annotation can have no comment.
   const canSave = draft.checked !== undefined || !!draft.comment.trim();
   const save = () => canSave && onSave(draft);
@@ -84,10 +114,12 @@ function Editor({
         <QuestionRef question={draft.quote} />
       ) : draft.checked !== undefined ? (
         <ChoiceRef text={draft.quote} question={draft.context} checked={draft.checked} />
+      ) : draft.region ? (
+        <RegionRef url={regionUrl} page={draft.page} text={draft.context} />
       ) : draft.image ? (
         <ImageRef path={draft.image} url={imageUrl(draft.image)} />
       ) : draft.quote ? (
-        <Quote text={draft.quote} />
+        <Quote text={draft.quote} page={draft.page} />
       ) : (
         <p className="mb-1.5 text-xs text-muted-foreground">General comment</p>
       )}
@@ -144,7 +176,7 @@ export function AnnotationsPanel({
       </div>
       <div className="min-h-0 flex-1 space-y-2 overflow-auto p-2">
         {enabled && annotations.length === 0 && !draft && (
-          <p className="p-1 text-xs text-muted-foreground">Select text in the document to annotate it (Ctrl M). Open an image to comment on it. Click a checkbox or fill a text field to answer a question.</p>
+          <p className="p-1 text-xs text-muted-foreground">Select text in the document to annotate it (Ctrl M). Comment on a screenshot of a region with Ctrl and a drag. Open an image to comment on it. Click a checkbox or fill a text field to answer a question.</p>
         )}
         {annotations.map((a, i) =>
           draft?.index === i ? (
@@ -168,7 +200,7 @@ export function AnnotationsPanel({
                     title="Edit"
                     onClick={(e) => {
                       e.stopPropagation();
-                      onDraft({ index: i, quote: a.quote, context: a.context, image: a.image, checked: a.checked, answer: a.answer, comment: a.comment });
+                      onDraft({ index: i, quote: a.quote, context: a.context, page: a.page, image: a.image, region: a.region, checked: a.checked, answer: a.answer, comment: a.comment });
                     }}
                   >
                     <Pencil />
@@ -190,10 +222,12 @@ export function AnnotationsPanel({
                 <QuestionRef question={a.quote} />
               ) : a.checked !== undefined ? (
                 <ChoiceRef text={a.quote} question={a.context} checked={a.checked} />
+              ) : a.region ? (
+                <RegionRef url={imageUrl(a.region)} page={a.page} text={a.context} />
               ) : a.image ? (
                 <ImageRef path={a.image} url={imageUrl(a.image)} />
               ) : (
-                a.quote && <Quote text={a.quote} />
+                a.quote && <Quote text={a.quote} page={a.page} />
               )}
               {a.comment && <p className="text-sm whitespace-pre-wrap">{a.comment}</p>}
             </div>

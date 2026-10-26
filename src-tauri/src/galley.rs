@@ -5,9 +5,10 @@
 //!   GALLEY.md
 //!   <document>/        e.g. 2026-10-09_1430_cache-design
 //!     01/              snapshot
-//!       document.md    written by the agent
+//!       document.md    written by the agent (or document.pdf)
 //!       images/        written by the agent
 //!       annotations.md written by Galley
+//!       annotations/   screenshots of region annotations, written by Galley
 //! ```
 
 use crate::error::{AppError, AppResult};
@@ -18,14 +19,18 @@ use std::time::UNIX_EPOCH;
 
 pub const RULES_FILE: &str = "GALLEY.md";
 pub const DOCUMENT_FILE: &str = "document.md";
+pub const PDF_FILE: &str = "document.pdf";
 pub const ANNOTATIONS_FILE: &str = "annotations.md";
+pub const REGIONS_DIR: &str = "annotations";
 pub const RULES_TEMPLATE: &str = include_str!("GALLEY.md");
 
 #[derive(Debug, Clone, Serialize, PartialEq, Eq)]
 pub struct Snapshot {
     pub name: String,
     pub path: String,
-    /// Modification time of `document.md` in milliseconds since the Unix epoch.
+    /// The file name of the document: `document.md` or `document.pdf`.
+    pub document: String,
+    /// Modification time of the document in milliseconds since the Unix epoch.
     pub document_modified: u64,
     /// Modification time of `annotations.md`, or `None` if the file does not exist.
     pub annotations_modified: Option<u64>,
@@ -80,7 +85,8 @@ fn subdirs(dir: &Path) -> AppResult<Vec<(String, PathBuf)>> {
 }
 
 /// Lists all documents and snapshots under `root`. A snapshot is a directory
-/// with a numeric name that contains `document.md`. Documents without snapshots
+/// with a numeric name that contains `document.md` or `document.pdf`. If both
+/// files exist, `document.md` is the document. Documents without snapshots
 /// are left out.
 pub fn scan(root: &Path) -> AppResult<Galley> {
     let mut documents = Vec::new();
@@ -90,12 +96,16 @@ pub fn scan(root: &Path) -> AppResult<Galley> {
             if !is_snapshot_name(&snap_name) {
                 continue;
             }
-            let Some(document_modified) = modified_ms(&snap_path.join(DOCUMENT_FILE)) else {
+            let Some((document, document_modified)) = [DOCUMENT_FILE, PDF_FILE]
+                .into_iter()
+                .find_map(|f| Some((f, modified_ms(&snap_path.join(f))?)))
+            else {
                 continue;
             };
             snapshots.push(Snapshot {
                 name: snap_name,
                 path: path_string(&snap_path)?,
+                document: document.to_string(),
                 document_modified,
                 annotations_modified: modified_ms(&snap_path.join(ANNOTATIONS_FILE)),
             });
@@ -257,7 +267,9 @@ pub fn read_annotations(root: &Path, snapshot: &Path) -> AppResult<String> {
 }
 
 /// Writes `annotations.md` of a snapshot atomically. An empty `text` removes
-/// the file.
+/// the file. Screenshots in the `annotations` directory that `text` does not
+/// refer to are deleted, and an empty `annotations` directory too. A failed
+/// deletion leaves the files and does not fail the write.
 pub fn write_annotations(root: &Path, snapshot: &Path, text: &str) -> AppResult<()> {
     let dir = snapshot_dir(root, snapshot)?;
     let p = dir.join(ANNOTATIONS_FILE);
@@ -265,12 +277,49 @@ pub fn write_annotations(root: &Path, snapshot: &Path, text: &str) -> AppResult<
         if p.exists() {
             std::fs::remove_file(p)?;
         }
+    } else {
+        let tmp = dir.join(format!(".{ANNOTATIONS_FILE}.tmp"));
+        std::fs::write(&tmp, text)?;
+        std::fs::rename(&tmp, &p)?;
+    }
+    let _ = prune_region_images(&dir, text);
+    Ok(())
+}
+
+/// Deletes the PNG files in the `annotations` directory of `dir` that `text`
+/// does not refer to as `annotations/<name>`.
+fn prune_region_images(dir: &Path, text: &str) -> AppResult<()> {
+    let regions = dir.join(REGIONS_DIR);
+    if !regions.is_dir() {
         return Ok(());
     }
-    let tmp = dir.join(format!(".{ANNOTATIONS_FILE}.tmp"));
-    std::fs::write(&tmp, text)?;
-    std::fs::rename(&tmp, &p)?;
+    for entry in std::fs::read_dir(&regions)? {
+        let entry = entry?;
+        let name = entry.file_name().to_string_lossy().into_owned();
+        if name.ends_with(".png") && !text.contains(&format!("{REGIONS_DIR}/{name}")) {
+            std::fs::remove_file(entry.path())?;
+        }
+    }
+    if std::fs::read_dir(&regions)?.next().is_none() {
+        std::fs::remove_dir(&regions)?;
+    }
     Ok(())
+}
+
+/// Writes the screenshot `png` of a region annotation as
+/// `annotations/<name>` into a snapshot. `name` is a plain file name that
+/// ends with `.png`. Returns the path relative to the snapshot.
+pub fn write_region_image(root: &Path, snapshot: &Path, name: &str, png: &[u8]) -> AppResult<String> {
+    let valid = name.ends_with(".png")
+        && !name.starts_with('.')
+        && name.chars().all(|c| c.is_ascii_alphanumeric() || "-_.".contains(c));
+    if !valid {
+        return Err(AppError::Invalid(format!("{name} is not a valid image name")));
+    }
+    let dir = snapshot_dir(root, snapshot)?.join(REGIONS_DIR);
+    std::fs::create_dir_all(&dir)?;
+    std::fs::write(dir.join(name), png)?;
+    Ok(format!("{REGIONS_DIR}/{name}"))
 }
 
 /// Deletes a document directory with all its snapshots.
@@ -344,6 +393,19 @@ mod tests {
     }
 
     #[test]
+    fn scan_finds_pdf_documents() {
+        let dir = tempdir().unwrap();
+        let p = dir.path().join("r/01");
+        fs::create_dir_all(&p).unwrap();
+        fs::write(p.join(PDF_FILE), "%PDF").unwrap();
+        snapshot(dir.path(), "r", "02");
+        fs::write(dir.path().join("r/02").join(PDF_FILE), "%PDF").unwrap();
+        let g = scan(dir.path()).unwrap();
+        let docs: Vec<_> = g.documents[0].snapshots.iter().map(|s| s.document.as_str()).collect();
+        assert_eq!(docs, [PDF_FILE, DOCUMENT_FILE]);
+    }
+
+    #[test]
     fn scan_skips_incomplete_and_hidden_entries() {
         let dir = tempdir().unwrap();
         fs::create_dir_all(dir.path().join("r/01")).unwrap();
@@ -364,6 +426,23 @@ mod tests {
         assert!(g.documents[0].snapshots[0].annotations_modified.is_some());
         write_annotations(dir.path(), &s, "  \n").unwrap();
         assert!(!s.join(ANNOTATIONS_FILE).exists());
+    }
+
+    #[test]
+    fn region_images_are_written_and_pruned() {
+        let dir = tempdir().unwrap();
+        let s = snapshot(dir.path(), "r", "01");
+        let a = write_region_image(dir.path(), &s, "region-1.png", b"png").unwrap();
+        let b = write_region_image(dir.path(), &s, "region-2.png", b"png").unwrap();
+        assert_eq!(a, "annotations/region-1.png");
+        for bad in ["../x.png", "a/b.png", ".png", "x.txt", ""] {
+            assert!(write_region_image(dir.path(), &s, bad, b"png").is_err(), "{bad}");
+        }
+        write_annotations(dir.path(), &s, &format!("## 1\n\nRegion: {b}\n")).unwrap();
+        assert!(!s.join(&a).exists());
+        assert!(s.join(&b).exists());
+        write_annotations(dir.path(), &s, "").unwrap();
+        assert!(!s.join(REGIONS_DIR).exists());
     }
 
     #[test]

@@ -1,3 +1,4 @@
+mod capture;
 mod cli;
 mod commands;
 mod error;
@@ -35,6 +36,7 @@ pub fn run() {
             commands::write_rules,
             commands::rules_template,
             commands::read_file,
+            commands::read_binary,
             commands::read_annotations,
             commands::write_annotations,
             commands::delete_document,
@@ -42,6 +44,8 @@ pub fn run() {
             commands::hash_files,
             commands::search,
             commands::export_pdf,
+            commands::capture_region,
+            commands::write_region_image,
             commands::save_preferences,
             commands::load_preferences,
         ])

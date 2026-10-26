@@ -188,7 +188,7 @@ export function DocumentTree({
                       <span className="shrink-0">Snapshot {snap.name}</span>
                       <span
                         className="min-w-0 flex-1 truncate text-[11px] font-normal text-muted-foreground"
-                        title="Modification time of document.md"
+                        title="Modification time of the document"
                       >
                         {formatTime(snap.document_modified)}
                       </span>

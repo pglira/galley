@@ -28,10 +28,26 @@
 //
 //   Answer: the question, which is the text before the text field
 //
+// A quote in a PDF document has a page line after the quote, with the number
+// of the page (starting at 1) where the quote starts:
+//
+//   Page: 3
+//
+// An annotation of a rectangular region of the document has a region line
+// instead of the quote, with the path of a screenshot of the region. The
+// path is relative to the snapshot directory. A page line and a context line
+// can follow: the page of a PDF document, and the text inside the region:
+//
+//   Region: annotations/region-1761478512345.png
+//
+//   Page: 4
+//
+//   Context: the text inside the region
+//
 // An annotation
-// without a quote and without an image refers to the full document. The context line
+// without a quote, an image or a region refers to the full document. The context line
 // is optional: it locates a quote that occurs more than once in the document.
-// A comment line that starts with ">", "Context:", "Image:", "Checked:" or "Answer:", or looks like a "## N"
+// A comment line that starts with ">", "Context:", "Page:", "Region:", "Image:", "Checked:" or "Answer:", or looks like a "## N"
 // heading, gets a Markdown escape ("\\"), so that it reads back as comment
 // text.
 
@@ -39,8 +55,13 @@ export interface Annotation {
   quote: string;
   // The text around the quote, if the quote is not unique in the document.
   context?: string;
+  // The page of the quote in a PDF document, starting at 1.
+  page?: number;
   // The path of the annotated image, as it is written in the document.
   image?: string;
+  // The path of the screenshot of an annotated region, relative to the
+  // snapshot directory. The context is the text inside the region.
+  region?: string;
   // The state that the reviewer set for the checkbox of the option in `quote`.
   // The context is the question of the option.
   checked?: boolean;
@@ -52,8 +73,10 @@ export interface Annotation {
 
 const HEADING = /^##\s+\d+\s*$/;
 // A comment line that needs one more backslash, with any backslashes it has.
-const ESCAPED = /^\\*(>|Context:|Image:|Checked:|Answer:|##\s+\d+\s*$)/;
+const ESCAPED = /^\\*(>|Context:|Page:|Region:|Image:|Checked:|Answer:|##\s+\d+\s*$)/;
 const CONTEXT = /^Context:\s*/;
+const PAGE = /^Page:\s*(\d+)\s*$/;
+const REGION = /^Region:\s*/;
 const IMAGE = /^Image:\s*/;
 const ANSWER = /^Answer:\s*/;
 const CHECKED = /^Checked:\s*\[([ xX])\]\s*(.*)$/;
@@ -79,7 +102,11 @@ export function parseAnnotations(text: string): Annotation[] {
     let checked: boolean | undefined;
     const quote: string[] = [];
     const m = CHECKED.exec(first);
-    if (IMAGE.test(first)) {
+    let region: string | undefined;
+    if (REGION.test(first)) {
+      region = first.replace(REGION, "").trim();
+      i++;
+    } else if (IMAGE.test(first)) {
       image = first.replace(IMAGE, "").trim();
       i++;
     } else if (ANSWER.test(first)) {
@@ -97,17 +124,26 @@ export function parseAnnotations(text: string): Annotation[] {
       }
     }
     let context: string | undefined;
-    if (quote.length > 0 && !answer) {
+    let page: number | undefined;
+    // The page line and the context line follow the quote, in any order.
+    while ((quote.length > 0 && !answer) || region) {
       let j = i;
       while (j < lines.length && !lines[j].trim()) j++;
-      if (j < lines.length && CONTEXT.test(lines[j])) {
+      const p = j < lines.length ? PAGE.exec(lines[j]) : null;
+      if (p && page === undefined && checked === undefined) {
+        page = Number(p[1]);
+      } else if (j < lines.length && CONTEXT.test(lines[j]) && context === undefined) {
         context = lines[j].replace(CONTEXT, "").trim();
-        i = j + 1;
+      } else {
+        break;
       }
+      i = j + 1;
     }
     const a: Annotation = { quote: quote.join("\n").trim(), comment: lines.slice(i).map(unescapeLine).join("\n").trim() };
     if (context) a.context = context;
+    if (page) a.page = page;
     if (image) a.image = image;
+    if (region) a.region = region;
     if (checked !== undefined) a.checked = checked;
     if (answer) a.answer = true;
     out.push(a);
@@ -128,7 +164,12 @@ export function serializeAnnotations(list: Annotation[]): string {
   if (list.length === 0) return "";
   const sections = list.map((a, i) => {
     const parts = [`## ${i + 1}`];
-    if (a.image) {
+    if (a.region) {
+      parts.push(`Region: ${a.region}`);
+      if (a.page) parts.push(`Page: ${a.page}`);
+      const context = a.context?.replace(/\s+/g, " ").trim();
+      if (context) parts.push(`Context: ${context}`);
+    } else if (a.image) {
       parts.push(`Image: ${a.image}`);
     } else if (a.answer) {
       parts.push(`Answer: ${a.quote.replace(/\s+/g, " ").trim()}`);
@@ -144,6 +185,7 @@ export function serializeAnnotations(list: Annotation[]): string {
           .map((l) => (l.trim() ? `> ${l.trim()}` : ">"))
           .join("\n")
       );
+      if (a.page) parts.push(`Page: ${a.page}`);
       const context = a.context?.replace(/\s+/g, " ").trim();
       if (context) parts.push(`Context: ${context}`);
     }

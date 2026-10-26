@@ -12,9 +12,11 @@ interface Props {
   targetLine: number | null;
   containerRef: React.RefObject<HTMLElement | null>;
   contentNonce: number;
+  // The search leaves out the text inside elements that match this selector.
+  skip?: string;
 }
 
-export function DocSearch({ open, onClose, query, onQueryChange, targetLine, containerRef, contentNonce }: Props) {
+export function DocSearch({ open, onClose, query, onQueryChange, targetLine, containerRef, contentNonce, skip }: Props) {
   const [count, setCount] = useState(0);
   const [active, setActive] = useState(0);
   const handleRef = useRef<{ matches: HTMLElement[]; clear: () => void } | null>(null);
@@ -26,7 +28,7 @@ export function DocSearch({ open, onClose, query, onQueryChange, targetLine, con
     setCount(0);
     setActive(0);
     if (!open || !query || !containerRef.current) return;
-    const h = highlightMatches(containerRef.current, query);
+    const h = highlightMatches(containerRef.current, query, skip);
     handleRef.current = h;
     setCount(h.matches.length);
     if (h.matches.length > 0) {
@@ -38,7 +40,7 @@ export function DocSearch({ open, onClose, query, onQueryChange, targetLine, con
     return () => {
       h.clear();
     };
-  }, [query, open, targetLine, contentNonce, containerRef]);
+  }, [query, open, targetLine, contentNonce, containerRef, skip]);
 
   useEffect(() => {
     if (open) inputRef.current?.select();

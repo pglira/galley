@@ -11,11 +11,14 @@ import { assetUrl, openUrl } from "@/lib/tauri";
 import { diffHtml, REMOVED_SELECTOR } from "@/lib/diff";
 import { buildIndex, countQuote, findQuote, quoteContext, unwrapAll, wrapRange, type TextIndex } from "@/lib/textRange";
 import type { Annotation } from "@/lib/annotations";
-import { headingTarget, navAction, scrollDistance } from "@/lib/navigation";
+import { headingTarget, KEY_TARGETS, navAction, scrollDistance, SPACE_TARGETS } from "@/lib/navigation";
+import { textInRect, trackRegion } from "@/lib/region";
 
 // The text of the document in a snapshot.
 export interface Content {
   source: string;
+  // The bytes of a PDF document. The source of a PDF document is empty.
+  pdf?: Uint8Array;
   filePath: string;
   // The load generation of the content. Its images load with this version.
   version: number;
@@ -25,10 +28,22 @@ export interface TextSelection {
   quote: string;
   // The text around the quote, if the quote is not unique in the document.
   context?: string;
+  // The page of the quote in a PDF document, starting at 1.
+  page?: number;
   rect: DOMRect;
   // True for a selection of only removed text of the diff. It has no quote:
   // the removed text is not part of the snapshot that the annotations are for.
   removed?: boolean;
+}
+
+// A region that the user draws on the document with Ctrl and a drag.
+export interface RegionSelection {
+  // The rectangle in viewport coordinates.
+  rect: DOMRect;
+  // The text inside the rectangle.
+  context: string;
+  // The page of a PDF document under the center of the rectangle.
+  page?: number;
 }
 
 // An image of the shown document.
@@ -73,6 +88,8 @@ interface Props {
   onCheck: (choice: Choice) => void;
   // Receives the new text of a text field of the document and its question.
   onAnswer: (question: string, text: string) => void;
+  // Receives a region that the user draws with Ctrl and a drag.
+  onRegion: (region: RegionSelection) => void;
   // True if the navigation keys move in the document.
   keyNavigation: boolean;
   articleRef?: React.RefObject<HTMLElement | null>;
@@ -87,10 +104,6 @@ const CHOICE_MARK = "galley-choice";
 const CHOICE_ITEM = "galley-choice-item";
 const ANSWER_SELECTOR = ".galley-answer > textarea";
 const MAX_QUESTION = 300;
-// Keys go to these elements, not to the navigation.
-const KEY_TARGETS = "input, textarea, select, [contenteditable=''], [contenteditable='true'], [role=menu], [role=listbox], [role=dialog]";
-// Space activates these elements.
-const SPACE_TARGETS = "button, a, [role=button], [role=checkbox]";
 
 // The text of an element without its nested lists and the removed text of the diff.
 function ownText(el: Element): string {
@@ -216,6 +229,7 @@ export function Viewer({
   onImageClick,
   onCheck,
   onAnswer,
+  onRegion,
   keyNavigation,
   articleRef,
   handleRef,
@@ -229,10 +243,10 @@ export function Viewer({
   const [renderNonce, setRenderNonce] = React.useState(0);
 
   // Keep callbacks fresh without making them effect dependencies.
-  const callbacks = React.useRef({ onRendered, onSelection, onAnnotationClick, onImageClick, onCheck, onAnswer });
+  const callbacks = React.useRef({ onRendered, onSelection, onAnnotationClick, onImageClick, onCheck, onAnswer, onRegion });
   React.useEffect(() => {
-    callbacks.current = { onRendered, onSelection, onAnnotationClick, onImageClick, onCheck, onAnswer };
-  }, [onRendered, onSelection, onAnnotationClick, onImageClick, onCheck, onAnswer]);
+    callbacks.current = { onRendered, onSelection, onAnnotationClick, onImageClick, onCheck, onAnswer, onRegion };
+  }, [onRendered, onSelection, onAnnotationClick, onImageClick, onCheck, onAnswer, onRegion]);
 
   const html = React.useMemo(() => {
     const current = renderMarkdown(content.source, imageResolver(content));
@@ -423,7 +437,15 @@ export function Viewer({
     root.addEventListener("click", onClick);
     root.addEventListener("change", onChange);
     root.addEventListener("keydown", onKeyDown);
+    // Ctrl and a drag draw a region in the visible part of the document.
+    const scroller = scrollerRef.current!;
+    const untrackRegion = trackRegion(
+      root,
+      () => scroller.getBoundingClientRect(),
+      (rect) => callbacks.current.onRegion({ rect, context: textInRect(root, rect, REMOVED_SELECTOR) })
+    );
     return () => {
+      untrackRegion();
       root.removeEventListener("mouseup", onMouseUp);
       root.removeEventListener("click", onClick);
       root.removeEventListener("change", onChange);

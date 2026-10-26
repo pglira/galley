@@ -125,18 +125,21 @@ export function findQuote(index: TextIndex, quote: string, context?: string): [n
   return [first, first + needle.length];
 }
 
-const BLOCK = "p, li, tr, h1, h2, h3, h4, h5, h6, dt, dd, caption, figcaption, pre, blockquote";
+// A text layer holds the text of a PDF page.
+const BLOCK = "p, li, tr, h1, h2, h3, h4, h5, h6, dt, dd, caption, figcaption, pre, blockquote, .textLayer";
 
 // Returns the text of the block that contains the start of `range`, with
 // at most `max` characters before and after the range. Leaves out the text
-// inside elements that match `skip`. Cut text gets an ellipsis ("…").
-export function quoteContext(range: Range, skip: string, max = 80): string {
+// inside elements that match `skip`. A line break counts as a space. Cut
+// text gets an ellipsis ("…").
+export function quoteContext(range: Range, skip?: string, max = 80): string {
   const start = range.startContainer;
   const block = (start.nodeType === 1 ? (start as Element) : start.parentElement)?.closest(BLOCK);
   if (!block) return "";
   const text = (r: Range) => {
     const frag = r.cloneContents();
-    frag.querySelectorAll(skip).forEach((e) => e.remove());
+    if (skip) frag.querySelectorAll(skip).forEach((e) => e.remove());
+    frag.querySelectorAll("br").forEach((e) => e.replaceWith(" "));
     return (frag.textContent ?? "").replace(/\s+/g, " ");
   };
   const before = document.createRange();

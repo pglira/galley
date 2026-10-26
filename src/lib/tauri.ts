@@ -4,6 +4,8 @@ import { openUrl as openerOpenUrl } from "@tauri-apps/plugin-opener";
 export interface Snapshot {
   name: string;
   path: string;
+  // The file name of the document: "document.md" or "document.pdf".
+  document: string;
   document_modified: number;
   annotations_modified: number | null;
 }
@@ -69,6 +71,8 @@ export const tauri = {
   writeRules: (root: string, text: string) => invoke<void>("write_rules", { root, text }),
   rulesTemplate: () => invoke<string>("rules_template"),
   readFile: (root: string, path: string) => invoke<string>("read_file", { root, path }),
+  readBinary: (root: string, path: string) =>
+    invoke<ArrayBuffer>("read_binary", { root, path }).then((b) => new Uint8Array(b)),
   readAnnotations: (root: string, snapshot: string) => invoke<string>("read_annotations", { root, snapshot }),
   writeAnnotations: (root: string, snapshot: string, text: string) =>
     invoke<void>("write_annotations", { root, snapshot, text }),
@@ -77,6 +81,14 @@ export const tauri = {
     invoke<void>("delete_snapshots", { root, document: doc, names }),
   search: (root: string, query: string) => invoke<SearchResult>("search", { root, query }),
   hashFiles: (root: string, paths: string[]) => invoke<(string | null)[]>("hash_files", { root, paths }),
+  // A screenshot (PNG) of a rectangle of the visible area of the window, in CSS pixels.
+  captureRegion: (rect: { x: number; y: number; width: number; height: number }) =>
+    invoke<ArrayBuffer>("capture_region", { rect }).then((b) => new Uint8Array(b)),
+  // The PNG is the raw body of the request; the paths are percent-encoded headers.
+  writeRegionImage: (root: string, snapshot: string, name: string, png: Uint8Array) =>
+    invoke<string>("write_region_image", png, {
+      headers: { root: encodeURIComponent(root), snapshot: encodeURIComponent(snapshot), name: encodeURIComponent(name) },
+    }),
   exportPdf: (path: string, page: PageOptions) => invoke<void>("export_pdf", { path, page }),
   savePreferences: (prefs: PreferencesPayload) => invoke<void>("save_preferences", { prefs }),
   loadPreferences: () => invoke<PreferencesPayload>("load_preferences"),

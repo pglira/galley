@@ -31,6 +31,8 @@ interface Props {
   onDiffOn: (on: boolean) => void;
   reference: string | null;
   onReference: (name: string) => void;
+  // The side-by-side view of the diff of a PDF document, or null for no such diff.
+  sideBySide: { on: boolean; onChange: (on: boolean) => void } | null;
   canCopyPrompt: boolean;
   // True for a short time after the prompt was copied.
   copied: boolean;
@@ -49,6 +51,7 @@ export function Toolbar({
   onDiffOn,
   reference,
   onReference,
+  sideBySide,
   canCopyPrompt,
   copied,
   onCopyPrompt,
@@ -111,6 +114,20 @@ export function Toolbar({
             </DropdownMenuRadioGroup>
           </DropdownMenuContent>
         </DropdownMenu>
+        {sideBySide && (
+          <label
+            className="ml-2 flex items-center gap-2 text-[13px]"
+            title="Show the pages of the reference snapshot next to the pages"
+          >
+            <input
+              type="checkbox"
+              className="checkbox"
+              checked={sideBySide.on}
+              onChange={(e) => sideBySide.onChange(e.target.checked)}
+            />
+            Side by side
+          </label>
+        )}
         <div className="mx-2 h-4 w-px bg-border" />
         <Button
           variant={canCopyPrompt ? "default" : "outline"}

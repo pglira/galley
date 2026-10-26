@@ -1,13 +1,13 @@
 # Galley
 
-Galley is a desktop app to review Markdown documents from AI agents. You read a document, annotate it, and give the annotations back to the agent. The agent writes a new snapshot of the document, and Galley shows you what changed.
+Galley is a desktop app to review Markdown and PDF documents from AI agents. You read a document, annotate it, and give the annotations back to the agent. The agent writes a new snapshot of the document, and Galley shows you what changed.
 
 Galley is a fork of [Marky](https://github.com/GRVYDEV/marky) (Tauri v2, Rust, React).
 
 ## Workflow
 
 1. Give the agent a task and point it to a galley directory. Galley writes the rules for the agent into `GALLEY.md` in that directory.
-2. The agent writes a document: `YYYY-MM-DD_HHMM_<name>/01/document.md`, with figures in `images/`.
+2. The agent writes a document: `YYYY-MM-DD_HHMM_<name>/01/document.md`, with figures in `images/`, or a PDF document `YYYY-MM-DD_HHMM_<name>/01/document.pdf`.
 3. Open the galley directory in Galley. The left side shows all documents and their snapshots.
 4. Select text in the document and click **Annotate**. Galley saves the annotations in `annotations.md` next to the document.
 5. Click **Copy prompt** (`Ctrl Shift C`) and paste the prompt into the terminal of the agent. The prompt uses only relative paths, so it works when the agent runs in a container or on a remote host.
@@ -21,9 +21,10 @@ galley/
   GALLEY.md                        rules for the agent
   2026-10-09_1430_cache-design/    one document
     01/                            one snapshot
-      document.md                  written by the agent
+      document.md                  written by the agent (or document.pdf)
       images/                      written by the agent
       annotations.md               written by Galley
+      annotations/                 written by Galley: screenshots of regions
     02/
 ```
 
@@ -55,9 +56,11 @@ galley path/to/galley-directory
 - Set the page width, the paper color (the page of the document) and the font of the document in the settings menu. Galley is always dark.
 - Search all documents and annotations with the field above the document list (`Ctrl Shift F`). Click a hit to open its snapshot at the match. `Ctrl F` finds text in the open document.
 - Edit `GALLEY.md` with the scroll icon above the document list. **Revert to default** replaces the text with the default `GALLEY.md` of the installed Galley version. Save with `Ctrl Enter`.
+- Hold `Ctrl` and drag over the document to comment on a region, for example a figure, a table or a diagram. Galley saves a screenshot of the region in `annotations/` of the snapshot (Linux only).
 - Annotate the selected text with the "Annotate" button or `Ctrl M`. Add a general comment with the plus icon in the annotations panel or `Ctrl Shift M`. Save a comment with `Ctrl Enter`, cancel with `Esc`.
 - Reload the selected snapshot with the reload icon in the toolbar (`F5`). Galley reads the document, its annotations and its images again. Galley also polls the directory every 2 s, but a reload also loads images that changed under the same name.
 - Export the document as a PDF with the export icon in the toolbar (`Ctrl P`). The PDF shows the document as it shows on screen, with the diff if it is on, on white paper. A dialog first asks for the paper size, the orientation, the margins and the scale of the content; Galley remembers the choice. On Linux, Galley saves the PDF directly; the paper size "System" comes from `$PAPERSIZE` or `/etc/papersize`, else from the locale. On other systems, the print dialog opens.
+- A snapshot with `document.pdf` instead of `document.md` shows the pages of the PDF. Select text on a page and annotate it; the annotation gets the number of the page. `Ctrl F`, the zoom and the page width also apply to PDF documents; `]` and `[` move to the next and previous page. The diff of a PDF document compares the words against another PDF snapshot: inserted words are green, and a red marker shows where text was removed (hover over it to see the text). Running headers and footers are compared page by page. The diff does not show changes in figures. **Side by side** shows the pages of the reference snapshot on the left, with the removed words marked red. The PDF export, checkboxes and text fields are only for Markdown documents, and the search of all documents does not search PDF documents.
 - Links to web pages open in the browser. Remote images do not load: a document can only show images from the galley directory.
 
 ## Develop

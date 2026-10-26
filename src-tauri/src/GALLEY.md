@@ -7,12 +7,17 @@ This directory contains documents for a human reviewer. The reviewer reads the d
 ```
 2026-10-09_1430_cache-design/   one document: local date, time and a short name
   01/                           snapshot 1
-    document.md                 the text of the document
+    document.md                 the text of the document (or document.pdf)
     images/                     the figures of document.md
     annotations.md              written by the reviewer, never by you
+    annotations/                screenshots for annotations.md, never by you
   02/                           snapshot 2
     ...
 ```
+
+## PDF documents
+
+A snapshot can contain `document.pdf` instead of `document.md`, for example a paper that you make with LaTeX or Typst. A snapshot contains only one of the two files. Write `document.pdf` last, as the last step of the snapshot. Keep the source files of the PDF outside the snapshot directory or in a subdirectory of it. The reviewer cannot answer questions with checkboxes or text fields in a PDF document.
 
 ## Start a new document
 
@@ -71,7 +76,7 @@ If you need a decision or information from the reviewer, ask for it in the docum
 - Use only relative paths for figures, for example `![Training loss over the epochs](images/loss.png)`. Do not use absolute paths or URLs.
 - Give each figure a caption. Put the figure in its own paragraph, with an empty line before and after it. The alt text is the caption: write it as a short sentence that tells what the figure shows.
 - Use PNG, JPEG, SVG, GIF or WebP for figures.
-- Never write or change `annotations.md`.
+- Never write or change `annotations.md` or the `annotations/` directory. Do not copy `annotations/` into a new snapshot.
 
 ## Format of `annotations.md`
 
@@ -116,7 +121,25 @@ The reviewer wrote "512 MB" into the text field after the question in the answer
 
 ## 6
 
-A comment without a quote and without an image refers to the full document.
+> the loss decreases
+
+Page: 3
+
+The quote is on page 3 of `document.pdf`. A quote has a page line only in a PDF document.
+
+## 7
+
+Region: annotations/region-1761478512345.png
+
+Page: 2
+
+Context: Figure 2: Gantt chart of the work packages
+
+The comment refers to a region of the document, for example a figure or a table. The region line has the path of a screenshot of the region, relative to the snapshot directory. Look at the screenshot to see what the reviewer means. The page line exists only for a PDF document. The context line holds the text inside the region, if there is text.
+
+## 8
+
+A comment without a quote, an image or a region refers to the full document.
 ```
 
-The quote and the context are the rendered text, so Markdown syntax such as `**` or `[...](...)` is not included. An ellipsis ("…") marks cut text in the context.
+The quote and the context are the rendered text, so Markdown syntax such as `**` or `[...](...)` is not included. An ellipsis ("…") marks cut text in the context. In a PDF document, the quote is the text of the PDF. Its line breaks and hyphens can be different from the source of the PDF.

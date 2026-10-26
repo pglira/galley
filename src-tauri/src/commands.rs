@@ -136,6 +136,12 @@ pub fn read_file(root: String, path: String, open: State<'_, OpenDirs>) -> AppRe
     galley::read_text(&open.get(&root)?, Path::new(&path))
 }
 
+/// Reads a file inside the galley as bytes, for example a PDF document.
+#[tauri::command]
+pub fn read_binary(root: String, path: String, open: State<'_, OpenDirs>) -> AppResult<tauri::ipc::Response> {
+    Ok(tauri::ipc::Response::new(galley::read_bytes(&open.get(&root)?, Path::new(&path))?))
+}
+
 #[tauri::command]
 pub fn read_annotations(root: String, snapshot: String, open: State<'_, OpenDirs>) -> AppResult<String> {
     galley::read_annotations(&open.get(&root)?, Path::new(&snapshot))
@@ -179,6 +185,38 @@ pub fn hash_files(root: String, paths: Vec<String>, open: State<'_, OpenDirs>) -
 #[tauri::command]
 pub async fn export_pdf(path: String, page: crate::pdf::PageOptions, window: tauri::WebviewWindow) -> AppResult<()> {
     crate::pdf::export(window, PathBuf::from(path), page).await
+}
+
+/// Takes a screenshot of a rectangle of the visible area of the window and
+/// returns it as PNG.
+#[tauri::command]
+pub async fn capture_region(rect: crate::capture::Rect, window: tauri::WebviewWindow) -> AppResult<tauri::ipc::Response> {
+    Ok(tauri::ipc::Response::new(crate::capture::capture(window, rect).await?))
+}
+
+/// Writes the screenshot of a region annotation into the `annotations`
+/// directory of a snapshot. Returns its path relative to the snapshot. The
+/// body of the request is the PNG; the percent-encoded headers `root`,
+/// `snapshot` and `name` give the galley, the snapshot directory and the
+/// file name.
+#[tauri::command]
+pub fn write_region_image(request: tauri::ipc::Request<'_>, open: State<'_, OpenDirs>) -> AppResult<String> {
+    let tauri::ipc::InvokeBody::Raw(png) = request.body() else {
+        return Err(AppError::Invalid("the request has no PNG".into()));
+    };
+    let header = |key: &str| -> AppResult<String> {
+        let value = request
+            .headers()
+            .get(key)
+            .and_then(|v| v.to_str().ok())
+            .ok_or_else(|| AppError::Invalid(format!("the request has no {key}")))?;
+        percent_encoding::percent_decode_str(value)
+            .decode_utf8()
+            .map(|v| v.into_owned())
+            .map_err(|_| AppError::Invalid(format!("the {key} is not UTF-8")))
+    };
+    let root = header("root")?;
+    galley::write_region_image(&open.get(&root)?, Path::new(&header("snapshot")?), &header("name")?, png)
 }
 
 #[derive(serde::Serialize, serde::Deserialize)]

@@ -11,7 +11,8 @@ export interface SearchHandle {
   clear: () => void;
 }
 
-export function highlightMatches(root: HTMLElement, query: string): SearchHandle {
+// Leaves out the text inside elements that match `skip`.
+export function highlightMatches(root: HTMLElement, query: string, skip?: string): SearchHandle {
   if (!query) return { matches: [], clear: () => {} };
 
   const lowered = query.toLowerCase();
@@ -32,6 +33,7 @@ export function highlightMatches(root: HTMLElement, query: string): SearchHandle
     if (node.nodeType !== Node.ELEMENT_NODE) return;
     const el = node as Element;
     if (el.tagName === "SCRIPT" || el.tagName === "STYLE") return;
+    if (skip && el.matches(skip)) return;
     for (const child of Array.from(el.childNodes)) collect(child);
   };
   collect(root);

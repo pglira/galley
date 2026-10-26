@@ -20,6 +20,31 @@ describe("annotations", () => {
     expect(parseAnnotations(serializeAnnotations(list))).toEqual(list);
   });
 
+  it("round-trips quotes with a page", () => {
+    const list = [
+      { quote: "the loss", page: 3, context: "We plot the loss over epochs.", comment: "Use a log scale." },
+      { quote: "abstract", page: 1, comment: "Shorter." },
+      { quote: "", comment: "Page: 2 is not a page line" },
+    ];
+    expect(parseAnnotations(serializeAnnotations(list))).toEqual(list);
+    expect(serializeAnnotations(list.slice(1, 2))).toBe("# Annotations\n\n## 1\n\n> abstract\n\nPage: 1\n\nShorter.\n");
+    expect(parseAnnotations("## 1\n\n> q\n\nContext: a q b\n\nPage: 4\n\nc")).toEqual([
+      { quote: "q", context: "a q b", page: 4, comment: "c" },
+    ]);
+  });
+
+  it("round-trips regions", () => {
+    const list = [
+      { quote: "", region: "annotations/region-1.png", page: 4, context: "Figure 3: the loss", comment: "Larger." },
+      { quote: "", region: "annotations/region-2.png", comment: "A diagram." },
+      { quote: "", comment: "Region: not a region line" },
+    ];
+    expect(parseAnnotations(serializeAnnotations(list))).toEqual(list);
+    expect(serializeAnnotations(list.slice(0, 1))).toBe(
+      "# Annotations\n\n## 1\n\nRegion: annotations/region-1.png\n\nPage: 4\n\nContext: Figure 3: the loss\n\nLarger.\n"
+    );
+  });
+
   it("round-trips checkboxes", () => {
     const list = [
       { quote: "Redis", checked: true, context: "Which cache should we use?", comment: "" },

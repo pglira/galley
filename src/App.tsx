@@ -8,7 +8,8 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { Button } from "@/components/ui/button";
 import { DocumentTree, documentLabel, type Selection } from "@/components/DocumentTree";
 import { Toolbar } from "@/components/Toolbar";
-import { Viewer, findAnswer, findChoice, type Choice, type Content, type DocImage, type TextSelection, type ViewerHandle } from "@/components/Viewer";
+import { PdfViewer } from "@/components/PdfViewer";
+import { Viewer, findAnswer, findChoice, type Choice, type Content, type DocImage, type RegionSelection, type TextSelection, type ViewerHandle } from "@/components/Viewer";
 import { DocSearch } from "@/components/DocSearch";
 import { AnnotationsPanel, type Draft } from "@/components/AnnotationsPanel";
 import { ImageViewer } from "@/components/ImageViewer";
@@ -19,18 +20,29 @@ import type { PdfOptions } from "@/lib/pdfOptions";
 import { SearchBox, SearchResults } from "@/components/SearchPanel";
 import { TableOfContents } from "@/components/TableOfContents";
 import { TabBar } from "@/components/TabBar";
-import { tauri, assetUrl, type Galley, type Document, type SearchHit } from "@/lib/tauri";
+import { tauri, assetUrl, type Galley, type Document, type SearchHit, type Snapshot } from "@/lib/tauri";
 import { parseAnnotations, serializeAnnotations, type Annotation } from "@/lib/annotations";
 import { buildPrompt, copyText } from "@/lib/prompt";
 import { renderMarkdown } from "@/lib/markdown";
 import { dirLabels, isRelativePath, resolveRelative } from "@/lib/paths";
 import { cn } from "@/lib/utils";
+import { nextPaint, regionImageName } from "@/lib/region";
 
 const POLL_MS = 2000;
 
 function joinPath(dir: string, name: string): string {
   const sep = dir.includes("\\") && !dir.includes("/") ? "\\" : "/";
   return `${dir}${sep}${name}`;
+}
+
+const isPdf = (s: Snapshot) => s.document.endsWith(".pdf");
+
+// Loads the document of a snapshot: the text of a Markdown document, or the
+// bytes of a PDF document.
+async function loadContent(root: string, snapshot: Snapshot, version: number): Promise<Content> {
+  const filePath = joinPath(snapshot.path, snapshot.document);
+  if (isPdf(snapshot)) return { source: "", pdf: await tauri.readBinary(root, filePath), filePath, version };
+  return { source: await tauri.readFile(root, filePath), filePath, version };
 }
 
 // Absolute paths of the local images of the content of a snapshot.
@@ -62,6 +74,8 @@ function GalleyView({ initial, name, shown, onOpenDir }: GalleyViewProps) {
   const [selection, setSelection] = useState<Selection | null>(null);
   const [content, setContent] = useState<Content | null>(null);
   const [diffOn, setDiffOn] = useState(false);
+  // The diff of PDF documents shows the reference pages next to the pages.
+  const [sideBySide, setSideBySide] = useState(false);
   const [reference, setReference] = useState<string | null>(null);
   const [compareContent, setCompareContent] = useState<Content | null>(null);
   const [imageHashes, setImageHashes] = useState<Record<string, string>>({});
@@ -92,9 +106,13 @@ function GalleyView({ initial, name, shown, onOpenDir }: GalleyViewProps) {
 
   const doc: Document | null = galley?.documents.find((r) => r.name === selection?.document) ?? null;
   const snapshot = doc?.snapshots.find((s) => s.name === selection?.snapshot) ?? null;
+  // The diff compares documents of the same kind: Markdown or PDF.
   const references = useMemo(
-    () => (doc?.snapshots ?? []).map((s) => s.name).filter((n) => n !== snapshot?.name),
-    [doc, snapshot?.name]
+    () =>
+      snapshot
+        ? (doc?.snapshots ?? []).filter((s) => s.name !== snapshot.name && isPdf(s) === isPdf(snapshot)).map((s) => s.name)
+        : [],
+    [doc, snapshot]
   );
 
   const applyGalley = useCallback((g: Galley) => {
@@ -136,15 +154,13 @@ function GalleyView({ initial, name, shown, onOpenDir }: GalleyViewProps) {
     }
     // Ignore responses that arrive after the selection changes.
     let cancelled = false;
-    const filePath = joinPath(snapshot.path, "document.md");
-    tauri
-      .readFile(root, filePath)
-      .then((source) => !cancelled && setContent({ source, filePath, version: reloadNonce }))
+    loadContent(root, snapshot, reloadNonce)
+      .then((c) => !cancelled && setContent(c))
       .catch((e) => !cancelled && setError(String(e)));
     return () => {
       cancelled = true;
     };
-  }, [snapshot?.path, snapshot?.document_modified, reloadNonce]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [snapshot?.path, snapshot?.document, snapshot?.document_modified, reloadNonce]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // The annotations of the previous snapshot never apply to a new selection.
   useEffect(() => {
@@ -174,7 +190,7 @@ function GalleyView({ initial, name, shown, onOpenDir }: GalleyViewProps) {
     setTextSel(null);
     if (!doc || !snapshot) return;
     const idx = doc.snapshots.findIndex((s) => s.name === snapshot.name);
-    const prev = doc.snapshots[idx - 1] ?? doc.snapshots[idx + 1];
+    const prev = [doc.snapshots[idx - 1], doc.snapshots[idx + 1]].find((s) => s && isPdf(s) === isPdf(snapshot));
     setReference(prev?.name ?? null);
   }, [doc?.name, snapshot?.name]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -186,10 +202,8 @@ function GalleyView({ initial, name, shown, onOpenDir }: GalleyViewProps) {
       return;
     }
     let cancelled = false;
-    const filePath = joinPath(refSnapshot.path, "document.md");
-    tauri
-      .readFile(root, filePath)
-      .then((source) => !cancelled && setCompareContent({ source, filePath, version: reloadNonce }))
+    loadContent(root, refSnapshot, reloadNonce)
+      .then((c) => !cancelled && setCompareContent(c))
       .catch((e) => !cancelled && setError(String(e)));
     return () => {
       cancelled = true;
@@ -232,9 +246,21 @@ function GalleyView({ initial, name, shown, onOpenDir }: GalleyViewProps) {
     [root, snapshot]
   );
 
-  const onSaveDraft = (d: Draft) => {
+  const onSaveDraft = async (d: Draft) => {
+    // A new region writes its screenshot first, so that the annotation never
+    // refers to a missing file.
+    if (d.png && d.region && snapshot) {
+      try {
+        await tauri.writeRegionImage(root, snapshot.path, d.region.replace(/^.*\//, ""), d.png);
+      } catch (e) {
+        setError(String(e));
+        return;
+      }
+    }
     const entry: Annotation = { quote: d.quote, comment: d.comment.trim() };
     if (d.context) entry.context = d.context;
+    if (d.page) entry.page = d.page;
+    if (d.region) entry.region = d.region;
     if (d.image) entry.image = d.image;
     if (d.checked !== undefined) entry.checked = d.checked;
     if (d.answer) entry.answer = true;
@@ -285,10 +311,42 @@ function GalleyView({ initial, name, shown, onOpenDir }: GalleyViewProps) {
     setActive(i >= 0 ? i : list.length - 1);
   };
 
+  // Takes a screenshot of a region without the marks of the annotations and
+  // opens a draft for it.
+  const onRegion = async (sel: RegionSelection) => {
+    if (!snapshot) return;
+    setTextSel(null);
+    document.body.classList.add("galley-capture");
+    try {
+      await nextPaint();
+      const { x, y, width, height } = sel.rect;
+      const png = await tauri.captureRegion({ x, y, width, height });
+      setDraft({
+        index: null,
+        quote: "",
+        region: `annotations/${regionImageName()}`,
+        png,
+        ...(sel.page && { page: sel.page }),
+        ...(sel.context && { context: sel.context }),
+        comment: "",
+      });
+    } catch (e) {
+      setError(`Screenshot failed: ${e}`);
+    } finally {
+      document.body.classList.remove("galley-capture");
+    }
+  };
+
   const activate = (index: number) => {
     setActive(index);
     const image = annotations[index]?.image;
-    const target = annotations[index]?.checked !== undefined
+    const region = annotations[index]?.region;
+    const page = annotations[index]?.page;
+    const target = region
+      ? page
+        ? articleRef.current?.querySelector(`.pdf-page[data-page="${page}"]`)
+        : null
+      : annotations[index]?.checked !== undefined
       ? articleRef.current?.querySelector(`li.galley-choice-item[data-annotation="${index}"]`)
       : annotations[index]?.answer
       ? articleRef.current?.querySelector(`.galley-answer[data-annotation="${index}"]`)
@@ -411,7 +469,7 @@ function GalleyView({ initial, name, shown, onOpenDir }: GalleyViewProps) {
     return () => window.removeEventListener("keydown", onKey);
   }, [shown, reload]);
 
-  const compare = diffOn && compareContent ? compareContent : null;
+  const compare = diffOn && compareContent && !!content?.pdf === !!compareContent.pdf ? compareContent : null;
   const title = doc && snapshot
     ? `${documentLabel(doc.name).title} · Snapshot ${snapshot.name}${compare ? ` · changes since snapshot ${reference}` : ""}`
     : galley.path;
@@ -429,7 +487,8 @@ function GalleyView({ initial, name, shown, onOpenDir }: GalleyViewProps) {
       .catch((e) => setError(String(e)));
   };
   // Opens the options of the PDF export; the export starts from there.
-  const exportPdf = doc && snapshot && content ? () => setPdfOpen(true) : null;
+  // A PDF document is a PDF file already.
+  const exportPdf = doc && snapshot && content && !content.pdf ? () => setPdfOpen(true) : null;
   exportPdfRef.current = exportPdf;
 
   const [copied, setCopied] = useState(false);
@@ -450,7 +509,7 @@ function GalleyView({ initial, name, shown, onOpenDir }: GalleyViewProps) {
   // Opens a draft for the selected text.
   const annotateSelection = () => {
     if (!textSel || textSel.removed) return;
-    setDraft({ index: null, quote: textSel.quote, context: textSel.context, comment: "" });
+    setDraft({ index: null, quote: textSel.quote, context: textSel.context, page: textSel.page, comment: "" });
     setTextSel(null);
     window.getSelection()?.removeAllRanges();
   };
@@ -494,6 +553,7 @@ function GalleyView({ initial, name, shown, onOpenDir }: GalleyViewProps) {
           onDiffOn={setDiffOn}
           reference={reference}
           onReference={setReference}
+          sideBySide={content?.pdf && compare ? { on: sideBySide, onChange: setSideBySide } : null}
           canCopyPrompt={annotations.length > 0}
           copied={copied}
           onCopyPrompt={copyPrompt}
@@ -519,7 +579,22 @@ function GalleyView({ initial, name, shown, onOpenDir }: GalleyViewProps) {
         )}
         <div className="flex min-h-0 flex-1">
           <main className="relative flex min-w-0 flex-1">
-            {content ? (
+            {content?.pdf ? (
+              <PdfViewer
+                content={content}
+                compare={compare}
+                sideBySide={sideBySide && compare != null}
+                annotations={annotations}
+                activeAnnotation={active}
+                onSelection={setTextSel}
+                onAnnotationClick={activate}
+                onRegion={onRegion}
+                keyNavigation={shown && !gallery && !rulesOpen}
+                articleRef={articleRef}
+                onRendered={() => setContentNonce((n) => n + 1)}
+                onError={setError}
+              />
+            ) : content ? (
               <Viewer
                 content={content}
                 compare={compare}
@@ -531,6 +606,7 @@ function GalleyView({ initial, name, shown, onOpenDir }: GalleyViewProps) {
                 onImageClick={(images, index) => setGallery({ images, index })}
                 onCheck={onCheck}
                 onAnswer={onAnswer}
+                onRegion={onRegion}
                 keyNavigation={shown && !gallery && !rulesOpen}
                 articleRef={articleRef}
                 handleRef={viewerRef}
@@ -552,6 +628,7 @@ function GalleyView({ initial, name, shown, onOpenDir }: GalleyViewProps) {
               targetLine={findLine}
               containerRef={articleRef}
               contentNonce={contentNonce}
+              skip={content?.pdf ? ".pdf-old-page" : undefined}
             />
           </main>
           <ResizeHandle

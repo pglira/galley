@@ -38,6 +38,15 @@ describe("textRange", () => {
     el.remove();
   });
 
+  it("reads a line break in the context as a space", () => {
+    const el = root('<div class="textLayer"><span>one</span><br><span>two</span><br><span>three</span></div>');
+    document.body.appendChild(el);
+    const range = document.createRange();
+    range.selectNodeContents(el.querySelectorAll("span")[1]);
+    expect(quoteContext(range)).toBe("one two three");
+    el.remove();
+  });
+
   it("unwraps marks", () => {
     const el = root("<p>a <mark>b</mark> c</p>");
     unwrapAll(el, "mark");

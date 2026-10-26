@@ -37,6 +37,13 @@ describe("highlightMatches", () => {
     const h = highlightMatches(root, "foo");
     expect(h.matches).toHaveLength(1);
   });
+
+  it("leaves out the elements that match skip", () => {
+    const root = setup('<div class="old"><p>foo</p></div><p>foo</p>');
+    const h = highlightMatches(root, "foo", ".old");
+    expect(h.matches).toHaveLength(1);
+    expect(h.matches[0].closest(".old")).toBeNull();
+  });
 });
 
 describe("setActiveMatch", () => {

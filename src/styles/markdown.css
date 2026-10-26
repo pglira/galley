@@ -344,3 +344,184 @@
   #print-root :is(figure, img, pre, table, blockquote, .mermaid-block) { break-inside: avoid; }
   #print-root :is(h1, h2, h3, h4, h5, h6) { break-after: avoid; }
 }
+
+/* PDF documents: pages with a canvas and a transparent text layer on top
+   (the layout of the text layer follows pdfjs-dist/web/pdf_viewer.css). */
+.pdf-body {
+  display: flex;
+  flex-direction: column;
+  align-items: safe center;
+  gap: 1rem;
+  padding: 1.5rem 0 6rem;
+}
+.pdf-page,
+.pdf-old-page {
+  position: relative;
+  flex: none;
+  background: white;
+  box-shadow: 0 1px 4px rgb(0 0 0 / 0.4);
+}
+/* The side-by-side view: the pages of the reference document on the left. */
+.pdf-body.side-by-side {
+  display: grid;
+  grid-template-columns: repeat(2, max-content);
+  justify-content: center;
+  align-items: start;
+  column-gap: 16px;
+  row-gap: 1rem;
+}
+.pdf-old-page .textLayer {
+  user-select: none;
+  pointer-events: none;
+}
+.pdf-page > canvas,
+.pdf-old-page > canvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+.pdf-page .textLayer,
+.pdf-old-page .textLayer {
+  position: absolute;
+  text-align: initial;
+  inset: 0;
+  overflow: clip;
+  line-height: 1;
+  text-size-adjust: none;
+  forced-color-adjust: none;
+  transform-origin: 0 0;
+  caret-color: CanvasText;
+  z-index: 0;
+  --min-font-size: 1;
+  --text-scale-factor: calc(var(--total-scale-factor) * var(--min-font-size));
+  --min-font-size-inv: calc(1 / var(--min-font-size));
+}
+:is(.pdf-page, .pdf-old-page) .textLayer :is(span, br) {
+  color: transparent;
+  position: absolute;
+  white-space: pre;
+  cursor: text;
+  transform-origin: 0% 0%;
+}
+:is(.pdf-page, .pdf-old-page) .textLayer > :not(.markedContent),
+:is(.pdf-page, .pdf-old-page) .textLayer .markedContent span:not(.markedContent) {
+  z-index: 1;
+  --font-height: 0;
+  font-size: calc(var(--text-scale-factor) * var(--font-height));
+  --scale-x: 1;
+  --rotate: 0deg;
+  transform: rotate(var(--rotate)) scaleX(var(--scale-x)) scale(var(--min-font-size-inv));
+}
+:is(.pdf-page, .pdf-old-page) .textLayer .markedContent {
+  display: contents;
+}
+.pdf-page .textLayer span[role="img"] {
+  user-select: none;
+  cursor: default;
+}
+.pdf-page .textLayer ::selection {
+  background: color-mix(in srgb, var(--primary) 35%, transparent);
+}
+.pdf-page .textLayer br::selection {
+  background: transparent;
+}
+.pdf-page .textLayer mark {
+  position: static;
+  color: transparent;
+}
+.pdf-page .textLayer mark.galley-annotation {
+  background: color-mix(in oklch, var(--primary) 30%, transparent);
+  border-bottom: 2px solid color-mix(in oklch, var(--primary) 80%, transparent);
+  cursor: pointer;
+}
+.pdf-page .textLayer mark.galley-annotation.active {
+  background: color-mix(in oklch, var(--primary) 50%, transparent);
+}
+.pdf-page .textLayer mark.doc-search-match {
+  background: color-mix(in oklch, orange 40%, transparent);
+}
+.pdf-page .textLayer mark.doc-search-match.doc-search-active {
+  background: color-mix(in oklch, orange 75%, transparent);
+}
+.pdf-old-page .pdf-diff-del-box {
+  position: absolute;
+  background: color-mix(in oklch, var(--diff-del-line) 30%, transparent);
+  border-bottom: 2px solid var(--diff-del-line);
+}
+/* The rectangle of a region while it is drawn with Ctrl and a drag. */
+.galley-region-frame {
+  position: fixed;
+  z-index: 60;
+  pointer-events: none;
+  border: 2px dashed var(--primary);
+  background: color-mix(in oklch, var(--primary) 8%, transparent);
+}
+/* While Galley takes a screenshot of a region, the marks of the annotations
+   and the search do not show. */
+.galley-capture mark.galley-annotation,
+.galley-capture mark.doc-search-match {
+  background: transparent !important;
+  border-color: transparent !important;
+  outline: none !important;
+  color: inherit !important;
+}
+.galley-capture .pdf-page .textLayer mark {
+  color: transparent !important;
+}
+.galley-capture img.galley-annotated-image {
+  box-shadow: none !important;
+}
+/* Diff of a PDF document: a layer on top of each page with green boxes on
+   the inserted words and red markers where text was removed. Hover over a
+   marker to see the removed text. */
+.pdf-body {
+  --diff-add-bg: oklch(0.8 0.16 150);
+  --diff-add-line: oklch(0.6 0.16 150);
+  --diff-del-line: oklch(0.58 0.2 25);
+}
+:is(.pdf-page, .pdf-old-page) .pdf-diff-layer {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+}
+.pdf-page .pdf-diff-ins {
+  position: absolute;
+  background: color-mix(in oklch, var(--diff-add-bg) 55%, transparent);
+  border-bottom: 2px solid var(--diff-add-line);
+}
+.pdf-page .pdf-diff-del {
+  position: absolute;
+  width: 2px !important;
+  margin-left: -1px;
+  background: var(--diff-del-line);
+  pointer-events: auto;
+  cursor: help;
+}
+.pdf-page .pdf-diff-del::before {
+  content: "";
+  position: absolute;
+  top: -5px;
+  left: -3px;
+  width: 8px;
+  height: 5px;
+  background: var(--diff-del-line);
+}
+.pdf-page .pdf-diff-del:hover::after {
+  content: attr(data-text);
+  position: absolute;
+  top: 100%;
+  left: 0;
+  z-index: 3;
+  width: max-content;
+  max-width: 22rem;
+  margin-top: 2px;
+  padding: 0.25rem 0.5rem;
+  white-space: normal;
+  font: 0.8rem/1.4 var(--font-doc, sans-serif);
+  text-decoration: line-through;
+  color: black;
+  background: oklch(0.95 0.04 25);
+  border: 1px solid var(--diff-del-line);
+}

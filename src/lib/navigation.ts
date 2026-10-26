@@ -78,6 +78,12 @@ export function scrollDistance(action: NavAction, viewHeight: number, lineHeight
   }
 }
 
+// Keys go to these elements, not to the navigation.
+export const KEY_TARGETS =
+  "input, textarea, select, [contenteditable=''], [contenteditable='true'], [role=menu], [role=listbox], [role=dialog]";
+// Space activates these elements.
+export const SPACE_TARGETS = "button, a, [role=button], [role=checkbox]";
+
 // Distance in pixels below which a heading counts as at the top of the view.
 const AT_TOP = 2;
 
