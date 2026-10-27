@@ -345,7 +345,7 @@ export function PdfViewer({
   React.useEffect(() => {
     const root = ref.current;
     if (!root) return;
-    const onMouseUp = () => {
+    const onMouseUp = (e: MouseEvent) => {
       // Read the selection after the browser updates it.
       setTimeout(() => {
         const sel = window.getSelection();
@@ -363,6 +363,7 @@ export function PdfViewer({
           ...(context && { context }),
           ...(page && { page }),
           rect: range.getBoundingClientRect(),
+          ...(e.altKey && { annotate: true }),
         });
       }, 0);
     };

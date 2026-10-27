@@ -34,6 +34,8 @@ export interface TextSelection {
   // True for a selection of only removed text of the diff. It has no quote:
   // the removed text is not part of the snapshot that the annotations are for.
   removed?: boolean;
+  // True if Alt was down at the end of the selection: the draft opens at once.
+  annotate?: boolean;
 }
 
 // A region that the user draws on the document with Ctrl and a drag.
@@ -386,7 +388,12 @@ export function Viewer({
         const skip = `${REMOVED_SELECTOR}, svg`;
         const index = buildIndex(root, { dropWhitespace: true, skip });
         const context = countQuote(index, quote) > 1 ? quoteContext(range, skip) : "";
-        callbacks.current.onSelection({ quote, ...(context && { context }), rect: range.getBoundingClientRect() });
+        callbacks.current.onSelection({
+          quote,
+          ...(context && { context }),
+          rect: range.getBoundingClientRect(),
+          ...(e.altKey && { annotate: true }),
+        });
       }, 0);
     };
     const onClick = (e: MouseEvent) => {

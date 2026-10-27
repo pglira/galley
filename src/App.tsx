@@ -529,6 +529,14 @@ function GalleyView({ initial, name, shown, onOpenDir }: GalleyViewProps) {
   };
   annotateRef.current = annotateSelection;
 
+  // A selection with Alt opens its draft at once.
+  const onTextSelection = (sel: TextSelection | null) => {
+    if (!sel?.annotate || sel.removed) return setTextSel(sel);
+    setDraft({ index: null, quote: sel.quote, context: sel.context, page: sel.page, comment: "" });
+    setTextSel(null);
+    window.getSelection()?.removeAllRanges();
+  };
+
   // Opens a draft for a general comment.
   addGeneralRef.current = () => {
     if (snapshot) setDraft({ index: null, quote: "", comment: "" });
@@ -608,7 +616,7 @@ function GalleyView({ initial, name, shown, onOpenDir }: GalleyViewProps) {
                 sideBySide={sideBySide && compare != null}
                 annotations={annotations}
                 activeAnnotation={active}
-                onSelection={setTextSel}
+                onSelection={onTextSelection}
                 onAnnotationClick={activate}
                 onRegion={onRegion}
                 keyNavigation={shown && !gallery && !rulesOpen}
@@ -623,7 +631,7 @@ function GalleyView({ initial, name, shown, onOpenDir }: GalleyViewProps) {
                 imageHashes={imageHashes}
                 annotations={annotations}
                 activeAnnotation={active}
-                onSelection={setTextSel}
+                onSelection={onTextSelection}
                 onAnnotationClick={activate}
                 onImageClick={(images, index) => setGallery({ images, index })}
                 onCheck={onCheck}
@@ -692,7 +700,7 @@ function GalleyView({ initial, name, shown, onOpenDir }: GalleyViewProps) {
           className="fixed z-50 shadow-md"
           style={{ top: textSel.rect.bottom + 6, left: textSel.rect.left }}
           onMouseDown={(e) => e.preventDefault()}
-          title="Annotate (Ctrl M)"
+          title="Annotate (Ctrl M, or Alt and a drag)"
           onClick={annotateSelection}
         >
           <MessageSquarePlus />
