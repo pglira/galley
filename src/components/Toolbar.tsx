@@ -35,6 +35,9 @@ import {
   PAPER_WIDTH_DEFAULT,
 } from "@/lib/preferences";
 
+// The title bar of a group of settings.
+const GROUP_TITLE = "border-b border-border bg-muted px-3 py-1.5 text-[11px] font-semibold uppercase tracking-wide text-foreground";
+
 interface Props {
   title: string;
   // Names of the snapshots that the diff can use as reference.
@@ -227,106 +230,109 @@ export function Toolbar({
             <TooltipContent>Settings</TooltipContent>
           </Tooltip>
           <DropdownMenuContent align="end" className="w-72">
-            <DropdownMenuLabel>Settings</DropdownMenuLabel>
-            <DropdownMenuSeparator />
-            <DropdownMenuCheckboxItem
-              checked={copyAsMarkdown}
-              onCheckedChange={setCopyAsMarkdown}
-            >
-              Copy as Markdown
-            </DropdownMenuCheckboxItem>
-            <DropdownMenuSeparator />
-            <DropdownMenuLabel className="text-xs font-normal text-muted-foreground">Text size (Ctrl + / Ctrl - / Ctrl 0)</DropdownMenuLabel>
-            <div className="flex items-center gap-1 px-2 pb-1.5">
-              <Button
-                variant="outline"
-                size="icon"
-                className="h-6 w-6"
-                onClick={zoomOut}
-                disabled={zoom <= ZOOM_MIN}
-              >
-                <Minus className="h-3 w-3" />
-              </Button>
-              <button
-                onClick={zoomReset}
-                className="min-w-[3rem] px-1 text-center text-xs text-foreground hover:bg-accent"
-                title="Reset to 100%"
-              >
-                {Math.round(zoom * 100)}%
-              </button>
-              <Button
-                variant="outline"
-                size="icon"
-                className="h-6 w-6"
-                onClick={zoomIn}
-                disabled={zoom >= ZOOM_MAX}
-              >
-                <Plus className="h-3 w-3" />
-              </Button>
-            </div>
-            <DropdownMenuSeparator />
-            <DropdownMenuLabel className="text-xs font-normal text-muted-foreground">Page width</DropdownMenuLabel>
-            <div className="flex items-center gap-2 px-2 pb-1.5">
-              <input
-                type="range"
-                min={PAPER_WIDTH_MIN}
-                max={PAPER_WIDTH_MAX}
-                step={20}
-                value={paperWidth}
-                onChange={(e) => setPaperWidth(Number(e.target.value))}
-                className="flex-1"
-                aria-label="Page width"
-              />
-              <button
-                onClick={() => setPaperWidth(PAPER_WIDTH_DEFAULT)}
-                className="min-w-[3.5rem] px-1 text-center text-xs text-foreground hover:bg-accent"
-                title={`Reset to ${PAPER_WIDTH_DEFAULT} px`}
-              >
-                {paperWidth} px
-              </button>
-            </div>
-            <DropdownMenuSeparator />
-            <DropdownMenuLabel className="text-xs font-normal text-muted-foreground">Paper</DropdownMenuLabel>
-            <div className="flex items-center gap-1.5 px-2 pb-2">
-              {PAPER_PRESETS.map((p) => (
-                <button
-                  key={p.color}
-                  title={p.name}
-                  onClick={() => setPaper(p.color)}
-                  className={cn(
-                    "size-6 shrink-0 border border-white/20",
-                    paper.toLowerCase() === p.color && "ring-2 ring-primary ring-offset-1 ring-offset-popover"
-                  )}
-                  style={{ background: p.color }}
-                />
-              ))}
-              <label
-                title="Custom color"
-                className="relative size-6 shrink-0 cursor-pointer overflow-hidden border border-white/20"
-                style={{ background: "conic-gradient(red, yellow, lime, cyan, blue, magenta, red)" }}
-              >
-                <input
-                  type="color"
-                  value={paper}
-                  onChange={(e) => setPaper(e.target.value)}
-                  className="absolute inset-0 cursor-pointer opacity-0"
-                />
-              </label>
-            </div>
-            <DropdownMenuSeparator />
-            <DropdownMenuLabel className="text-xs font-normal text-muted-foreground">Document font</DropdownMenuLabel>
-            <DropdownMenuRadioGroup value={docFont} onValueChange={setDocFont}>
-              {DOC_FONTS.map((f) => (
-                <DropdownMenuRadioItem
-                  key={f.id}
-                  value={f.id}
-                  style={{ fontFamily: f.family }}
-                  onSelect={(e) => e.preventDefault()}
+            <div className="m-1 border border-border">
+              <div className={GROUP_TITLE}>All documents</div>
+              <DropdownMenuLabel className="text-xs font-normal text-muted-foreground">Text size (Ctrl + / Ctrl - / Ctrl 0)</DropdownMenuLabel>
+              <div className="flex items-center gap-1 px-2 pb-1.5">
+                <Button
+                  variant="outline"
+                  size="icon"
+                  className="h-6 w-6"
+                  onClick={zoomOut}
+                  disabled={zoom <= ZOOM_MIN}
                 >
-                  {f.name}
-                </DropdownMenuRadioItem>
-              ))}
-            </DropdownMenuRadioGroup>
+                  <Minus className="h-3 w-3" />
+                </Button>
+                <button
+                  onClick={zoomReset}
+                  className="min-w-[3rem] px-1 text-center text-xs text-foreground hover:bg-accent"
+                  title="Reset to 100%"
+                >
+                  {Math.round(zoom * 100)}%
+                </button>
+                <Button
+                  variant="outline"
+                  size="icon"
+                  className="h-6 w-6"
+                  onClick={zoomIn}
+                  disabled={zoom >= ZOOM_MAX}
+                >
+                  <Plus className="h-3 w-3" />
+                </Button>
+              </div>
+              <DropdownMenuSeparator className="mx-0" />
+              <DropdownMenuLabel className="text-xs font-normal text-muted-foreground">Page width</DropdownMenuLabel>
+              <div className="flex items-center gap-2 px-2 pb-1.5">
+                <input
+                  type="range"
+                  min={PAPER_WIDTH_MIN}
+                  max={PAPER_WIDTH_MAX}
+                  step={20}
+                  value={paperWidth}
+                  onChange={(e) => setPaperWidth(Number(e.target.value))}
+                  className="flex-1"
+                  aria-label="Page width"
+                />
+                <button
+                  onClick={() => setPaperWidth(PAPER_WIDTH_DEFAULT)}
+                  className="min-w-[3.5rem] px-1 text-center text-xs text-foreground hover:bg-accent"
+                  title={`Reset to ${PAPER_WIDTH_DEFAULT} px`}
+                >
+                  {paperWidth} px
+                </button>
+              </div>
+            </div>
+            <div className="m-1 mt-2 border border-border">
+              <div className={GROUP_TITLE} title="PDF documents keep their own font and page color">Markdown documents only</div>
+              <DropdownMenuCheckboxItem
+                checked={copyAsMarkdown}
+                onCheckedChange={setCopyAsMarkdown}
+              >
+                Copy as Markdown
+              </DropdownMenuCheckboxItem>
+              <DropdownMenuSeparator className="mx-0" />
+              <DropdownMenuLabel className="text-xs font-normal text-muted-foreground">Paper</DropdownMenuLabel>
+              <div className="flex items-center gap-1.5 px-2 pb-2">
+                {PAPER_PRESETS.map((p) => (
+                  <button
+                    key={p.color}
+                    title={p.name}
+                    onClick={() => setPaper(p.color)}
+                    className={cn(
+                      "size-6 shrink-0 border border-white/20",
+                      paper.toLowerCase() === p.color && "ring-2 ring-primary ring-offset-1 ring-offset-popover"
+                    )}
+                    style={{ background: p.color }}
+                  />
+                ))}
+                <label
+                  title="Custom color"
+                  className="relative size-6 shrink-0 cursor-pointer overflow-hidden border border-white/20"
+                  style={{ background: "conic-gradient(red, yellow, lime, cyan, blue, magenta, red)" }}
+                >
+                  <input
+                    type="color"
+                    value={paper}
+                    onChange={(e) => setPaper(e.target.value)}
+                    className="absolute inset-0 cursor-pointer opacity-0"
+                  />
+                </label>
+              </div>
+              <DropdownMenuSeparator className="mx-0" />
+              <DropdownMenuLabel className="text-xs font-normal text-muted-foreground">Document font</DropdownMenuLabel>
+              <DropdownMenuRadioGroup value={docFont} onValueChange={setDocFont}>
+                {DOC_FONTS.map((f) => (
+                  <DropdownMenuRadioItem
+                    key={f.id}
+                    value={f.id}
+                    style={{ fontFamily: f.family }}
+                    onSelect={(e) => e.preventDefault()}
+                  >
+                    {f.name}
+                  </DropdownMenuRadioItem>
+                ))}
+              </DropdownMenuRadioGroup>
+            </div>
           </DropdownMenuContent>
         </DropdownMenu>
         <Tooltip>

@@ -54,7 +54,7 @@ galley path/to/galley-directory
 - Move in the document with the keys: `j` and `k` or the arrow keys (two lines), `d` and `u` (half a page), `Space`, `Shift Space`, `b`, `Page Down` and `Page Up` (a page), `g` or `Home` (top), `G` or `End` (bottom), `]` and `[` (next and previous heading).
 - Hide or show the document list and the annotations panel with the panel icons at the left and right ends of the toolbar. `Ctrl B` hides both sidebars, or shows them again, for example to give the side-by-side diff more space. Galley shows the annotations panel when you start a comment and the document list when you search all documents.
 - Change the text size of the document with `Ctrl +`, `Ctrl -` and `Ctrl 0` (reset), or with `Ctrl` and the mouse wheel. The images scale with the text.
-- Set the page width, the paper color (the page of the document) and the font of the document in the settings menu. Galley is always dark.
+- Set the text size and the page width of all documents in the settings menu. The paper color (the page of the document), the font of the document and "Copy as Markdown" apply only to Markdown documents. Galley is always dark.
 - Search all documents and annotations with the field above the document list (`Ctrl Shift F`). Click a hit to open its snapshot at the match. `Ctrl F` finds text in the open document.
 - Edit `GALLEY.md` with the scroll icon above the document list. **Revert to default** replaces the text with the default `GALLEY.md` of the installed Galley version. Save with `Ctrl Enter`.
 - Hold `Ctrl` and drag over the document to comment on a region, for example a figure, a table or a diagram. Galley saves a screenshot of the region in `annotations/` of the snapshot (Linux only).
