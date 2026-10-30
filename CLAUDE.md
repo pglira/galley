@@ -22,7 +22,7 @@ Galley is a fork of Marky. Keep the scope small: no editor for documents (only f
 
 ## Stack (do not swap without asking)
 
-Tauri v2 (Rust), Vite + React + TypeScript, pnpm, markdown-it, Shiki, mermaid, shadcn/ui, Tailwind CSS, DOMPurify, `diff` (jsdiff), `pdfjs-dist` (PDF.js).
+Tauri v2 (Rust), Vite + React + TypeScript, pnpm, markdown-it, Shiki, mermaid, shadcn/ui, Tailwind CSS, DOMPurify, `diff` (jsdiff), `pdfjs-dist` (PDF.js), CodeMirror 6 (`@uiw/react-codemirror`, only in the editor for `GALLEY.md`).
 
 ## Layout
 
@@ -40,7 +40,7 @@ Tauri v2 (Rust), Vite + React + TypeScript, pnpm, markdown-it, Shiki, mermaid, s
 - `src/lib/enhance.ts` — Shiki and mermaid on rendered HTML; used by the viewer and the PDF export.
 - `src/lib/print.ts` — PDF export: renders the document into `#print-root`, which only print media shows.
 - `src/components/PdfExportDialog.tsx` — the options of the PDF export (`src/lib/pdfOptions.ts`), stored in the preferences as `pdf`.
-- `src/components/RulesEditor.tsx` — the dialog to edit `GALLEY.md`.
+- `src/components/RulesEditor.tsx` — the dialog to edit `GALLEY.md`, with the Markdown editor `src/components/MarkdownEditor.tsx` (CodeMirror, syntax colors).
 - `src/components/SearchPanel.tsx` — search in all documents (`search` command in `galley.rs`).
 - `src/components/TableOfContents.tsx` — the headings of the shown document below the document tree (`src/lib/toc.ts`).
 

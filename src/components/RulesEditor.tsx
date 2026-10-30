@@ -8,6 +8,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { MarkdownEditor } from "@/components/MarkdownEditor";
 import { tauri } from "@/lib/tauri";
 
 interface Props {
@@ -83,18 +84,11 @@ export function RulesEditor({ root, open, onClose, onSaved, onError }: Props) {
           <DialogTitle>GALLEY.md</DialogTitle>
           <DialogDescription>The rules for the agent in this galley directory.</DialogDescription>
         </DialogHeader>
-        <textarea
-          className="min-h-0 flex-1 resize-none border bg-background p-2 font-mono text-xs leading-relaxed outline-none focus:border-ring"
-          spellCheck={false}
-          disabled={saved == null}
+        <MarkdownEditor
           value={text}
-          onChange={(e) => setText(e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) {
-              e.preventDefault();
-              save();
-            }
-          }}
+          onChange={setText}
+          disabled={saved == null}
+          onSubmit={save}
         />
         <DialogFooter className="sm:justify-between">
           <Button
