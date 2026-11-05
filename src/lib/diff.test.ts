@@ -105,3 +105,18 @@ describe("diffHtml", () => {
     expect(out).toContain("diff-added");
   });
 });
+
+describe("diffHtml with math", () => {
+  it("replaces a changed text block with a formula as a whole", () => {
+    const out = diffHtml(renderMarkdown("Area $\\pi r^2$ of a disk."), renderMarkdown("Area $\\pi r^2$ of a circle."));
+    expect(out).toMatch(/<p[^>]*class="diff-removed"/);
+    expect(out).toMatch(/<p[^>]*class="diff-added"/);
+    expect(out).not.toContain("diff-del");
+    expect(out).not.toContain("diff-ins");
+  });
+
+  it("leaves equal formulas unchanged", () => {
+    const md = "Area $\\pi r^2$.\n\n$$\nx^2\n$$";
+    expect(diffHtml(renderMarkdown(md), renderMarkdown(md))).not.toContain("diff-");
+  });
+});

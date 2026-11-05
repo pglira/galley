@@ -20,6 +20,7 @@ import "@fontsource/fira-sans/700.css";
 import "@fontsource/fira-sans/700-italic.css";
 import "@fontsource/ibm-plex-mono/400.css";
 import "@fontsource/ibm-plex-mono/600.css";
+import "katex/dist/katex.min.css";
 import "@/styles/index.css";
 import "@/styles/markdown.css";
 

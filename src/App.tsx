@@ -356,7 +356,9 @@ function GalleyView({ initial, name, shown, onOpenDir }: GalleyViewProps) {
       ? Array.from(articleRef.current?.querySelectorAll("img.galley-annotated-image") ?? []).find(
           (el) => el.getAttribute("data-src") === image
         )
-      : articleRef.current?.querySelector(`mark.galley-annotation[data-annotation="${index}"]`);
+      : articleRef.current?.querySelector(
+          `mark.galley-annotation[data-annotation="${index}"], .galley-annotated-math[data-annotation="${index}"]`
+        );
     target?.scrollIntoView({ block: "center", behavior: "smooth" });
   };
 
@@ -658,7 +660,7 @@ function GalleyView({ initial, name, shown, onOpenDir }: GalleyViewProps) {
               targetLine={findLine}
               containerRef={articleRef}
               contentNonce={contentNonce}
-              skip={content?.pdf ? ".pdf-old-page" : undefined}
+              skip={content?.pdf ? ".pdf-old-page" : ".katex-tex"}
             />
           </main>
           {sidebars.right && (

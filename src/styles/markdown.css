@@ -148,6 +148,13 @@
   color: var(--muted-foreground);
 }
 
+/* LaTeX math (KaTeX). The TeX source of a formula is the text for quotes
+   and does not show. Wide display math scrolls. */
+.markdown-body .katex-tex { display: none; }
+.markdown-body .katex-block { overflow-x: auto; overflow-y: hidden; }
+.markdown-body .katex-display { margin: 0.5em 0; }
+.markdown-body .katex-error { color: var(--diff-del-line) !important; }
+
 .markdown-body .mermaid-block {
   background: var(--muted);
   border: 1px solid var(--border);
@@ -231,6 +238,14 @@
   cursor: pointer;
 }
 .markdown-body mark.galley-annotation.active {
+  background: color-mix(in oklch, var(--primary) 35%, transparent);
+}
+.markdown-body .katex.galley-annotated-math {
+  background: color-mix(in oklch, var(--primary) 18%, transparent);
+  box-shadow: inset 0 -2px 0 color-mix(in oklch, var(--primary) 60%, transparent);
+  cursor: pointer;
+}
+.markdown-body .katex.galley-annotated-math.active {
   background: color-mix(in oklch, var(--primary) 35%, transparent);
 }
 .markdown-body img.galley-annotated-image {
@@ -460,8 +475,10 @@
 /* While Galley takes a screenshot of a region, the marks of the annotations
    and the search do not show. */
 .galley-capture mark.galley-annotation,
+.galley-capture .galley-annotated-math,
 .galley-capture mark.doc-search-match {
   background: transparent !important;
+  box-shadow: none !important;
   border-color: transparent !important;
   outline: none !important;
   color: inherit !important;

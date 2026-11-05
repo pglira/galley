@@ -9,6 +9,7 @@ import { usePreferences } from "@/lib/preferences";
 import { isRelativePath, resolveRelative } from "@/lib/paths";
 import { assetUrl, openUrl } from "@/lib/tauri";
 import { diffHtml, REMOVED_SELECTOR } from "@/lib/diff";
+import { extendToMath, fragmentText, MATH, MATH_HIDDEN, MATH_INVISIBLE } from "@/lib/math";
 import { buildIndex, countQuote, findQuote, quoteContext, unwrapAll, wrapRange, type TextIndex } from "@/lib/textRange";
 import type { Annotation } from "@/lib/annotations";
 import { headingTarget, KEY_TARGETS, navAction, scrollDistance, SPACE_TARGETS } from "@/lib/navigation";
@@ -100,6 +101,8 @@ interface Props {
 }
 
 const ANNOTATION_SELECTOR = "mark.galley-annotation";
+// A formula with a part of the quote of an annotation.
+const MATH_MARK = "galley-annotated-math";
 const IMAGE_MARK = "galley-annotated-image";
 const CHECKBOX_SELECTOR = "input.task-list-item-checkbox";
 const CHOICE_MARK = "galley-choice";
@@ -107,10 +110,11 @@ const CHOICE_ITEM = "galley-choice-item";
 const ANSWER_SELECTOR = ".galley-answer > textarea";
 const MAX_QUESTION = 300;
 
-// The text of an element without its nested lists and the removed text of the diff.
+// The text of an element without its nested lists and the removed text of the
+// diff. A formula counts as its TeX source.
 function ownText(el: Element): string {
   const clone = el.cloneNode(true) as Element;
-  clone.querySelectorAll(`ul, ol, ${REMOVED_SELECTOR}`).forEach((e) => e.remove());
+  clone.querySelectorAll(`ul, ol, ${REMOVED_SELECTOR}, ${MATH_HIDDEN}`).forEach((e) => e.remove());
   return (clone.textContent ?? "").replace(/\s+/g, " ").trim();
 }
 
@@ -175,7 +179,7 @@ const scrollMemory = new Map<string, number>();
 
 // Text that is the same in the plain and in the diff view of a document, and
 // before and after `enhance`.
-const ANCHOR_SKIP = `${REMOVED_SELECTOR}, pre, svg, button, .mermaid-block`;
+const ANCHOR_SKIP = `${REMOVED_SELECTOR}, pre, svg, button, .mermaid-block, ${MATH_INVISIBLE}`;
 
 // A character of the newer document and its distance from the top of the
 // scroller. The character is an index into the anchor text of the article.
@@ -311,6 +315,10 @@ export function Viewer({
     const root = ref.current;
     if (!root) return;
     unwrapAll(root, ANNOTATION_SELECTOR);
+    root.querySelectorAll(`.${MATH_MARK}`).forEach((el) => {
+      el.classList.remove(MATH_MARK, "active");
+      el.removeAttribute("data-annotation");
+    });
     const images = docImages(root).filter((d) => !d.image.removed);
     images.forEach(({ el }) => el.classList.remove(IMAGE_MARK, "active"));
     // Removed checkboxes and text fields of the diff are not part of the snapshot.
@@ -349,15 +357,23 @@ export function Viewer({
         return;
       }
       if (!a.quote || a.checked !== undefined || a.answer) return;
-      const index = buildIndex(root, { dropWhitespace: true, skip: `${REMOVED_SELECTOR}, svg` });
+      const index = buildIndex(root, { dropWhitespace: true, skip: `${REMOVED_SELECTOR}, svg, ${MATH_HIDDEN}` });
       const range = findQuote(index, a.quote, a.context);
       if (!range) return;
-      wrapRange(index, range[0], range[1], () => {
+      const marks = wrapRange(index, range[0], range[1], () => {
         const m = document.createElement("mark");
         m.className = i === activeAnnotation ? "galley-annotation active" : "galley-annotation";
         m.dataset.annotation = String(i);
         return m;
       });
+      // A mark in the hidden TeX source of a formula shows on the formula.
+      for (const m of marks) {
+        const formula = m.closest(MATH_INVISIBLE)?.closest(MATH);
+        if (!formula || formula.hasAttribute("data-annotation")) continue;
+        formula.classList.add(MATH_MARK);
+        if (i === activeAnnotation) formula.classList.add("active");
+        formula.setAttribute("data-annotation", String(i));
+      }
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [renderNonce, annotations, activeAnnotation]);
@@ -379,13 +395,15 @@ export function Viewer({
         const ancestor = range.commonAncestorContainer;
         const ancestorEl = ancestor instanceof Element ? ancestor : ancestor.parentElement;
         if (ancestorEl?.closest(REMOVED_SELECTOR)) return onlyRemoved();
+        // A formula counts as its TeX source, as a whole.
+        extendToMath(range);
         const frag = range.cloneContents();
         const removed = frag.querySelectorAll(REMOVED_SELECTOR);
-        removed.forEach((e) => e.remove());
-        const raw = removed.length > 0 ? (frag.textContent ?? "") : sel.toString();
+        const asText = removed.length > 0 || frag.querySelector(MATH) != null;
+        const raw = asText ? fragmentText(frag, REMOVED_SELECTOR) : sel.toString();
         const quote = raw.replace(/[ \t]+/g, " ").replace(/\n\s*\n+/g, "\n").trim();
         if (!quote) return removed.length > 0 ? onlyRemoved() : callbacks.current.onSelection(null);
-        const skip = `${REMOVED_SELECTOR}, svg`;
+        const skip = `${REMOVED_SELECTOR}, svg, ${MATH_HIDDEN}`;
         const index = buildIndex(root, { dropWhitespace: true, skip });
         const context = countQuote(index, quote) > 1 ? quoteContext(range, skip) : "";
         callbacks.current.onSelection({
@@ -427,7 +445,7 @@ export function Viewer({
         }
         return;
       }
-      const mark = (e.target as Element).closest?.(`${ANNOTATION_SELECTOR}, li.${CHOICE_ITEM}`) as HTMLElement | null;
+      const mark = (e.target as Element).closest?.(`${ANNOTATION_SELECTOR}, .${MATH_MARK}, li.${CHOICE_ITEM}`) as HTMLElement | null;
       if (mark?.dataset.annotation) callbacks.current.onAnnotationClick(Number(mark.dataset.annotation));
     };
     const onChange = (e: Event) => {
@@ -449,7 +467,7 @@ export function Viewer({
     const untrackRegion = trackRegion(
       root,
       () => scroller.getBoundingClientRect(),
-      (rect) => callbacks.current.onRegion({ rect, context: textInRect(root, rect, REMOVED_SELECTOR) })
+      (rect) => callbacks.current.onRegion({ rect, context: textInRect(root, rect, `${REMOVED_SELECTOR}, ${MATH_INVISIBLE}`) })
     );
     return () => {
       untrackRegion();

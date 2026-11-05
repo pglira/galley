@@ -84,6 +84,7 @@ The reviewer reads the documents, not the chat. Put all content into the documen
 - Use only relative paths for figures, for example `![Training loss over the epochs](images/loss.png)`. Do not use absolute paths or URLs.
 - Give each figure a caption. Put the figure in its own paragraph, with an empty line before and after it. The alt text is the caption: write it as a short sentence that tells what the figure shows.
 - Use PNG, JPEG, SVG, GIF or WebP for figures.
+- Write math in LaTeX: `$...$` in a line of text, and `$$...$$` or a `math` code block for a formula on its own line. Galley renders it with KaTeX.
 - Never write or change `annotations.md` or the `annotations/` directory. Do not copy `annotations/` into a new snapshot.
 
 ## Format of `annotations.md`

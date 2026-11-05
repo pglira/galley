@@ -1,4 +1,5 @@
 import { REMOVED_SELECTOR } from "@/lib/diff";
+import { MATH_HIDDEN } from "@/lib/math";
 
 // A heading of the shown document.
 export interface TocEntry {
@@ -15,10 +16,11 @@ export function tocHeadings(root: ParentNode): HTMLElement[] {
   );
 }
 
-// The text of a heading without its permalink and the removed text of the diff.
+// The text of a heading without its permalink and the removed text of the
+// diff. A formula counts as its TeX source.
 export function headingText(h: Element): string {
   const clone = h.cloneNode(true) as Element;
-  clone.querySelectorAll(`.header-anchor, ${REMOVED_SELECTOR}`).forEach((e) => e.remove());
+  clone.querySelectorAll(`.header-anchor, ${REMOVED_SELECTOR}, ${MATH_HIDDEN}`).forEach((e) => e.remove());
   return (clone.textContent ?? "").replace(/\s+/g, " ").trim();
 }
 

@@ -4,6 +4,9 @@ import anchor from "markdown-it-anchor";
 import footnote from "markdown-it-footnote";
 import taskLists from "markdown-it-task-lists";
 import frontMatter from "markdown-it-front-matter";
+import katex from "@vscode/markdown-it-katex";
+import type Katex from "katex";
+import { renderMath } from "@/lib/math";
 import DOMPurify from "dompurify";
 
 const md = new MarkdownIt({
@@ -155,6 +158,29 @@ md.renderer.rules.fence = (tokens, idx, options, env, self) => {
     html = html.replace(/^<pre(?=[\s>])/, `<pre${sourceMapAttr}`);
   }
   return html;
+};
+
+// LaTeX math through KaTeX: `$inline$`, `$$display$$` and `math` code
+// blocks. A formula with an error shows its error message. Display math
+// gets the source lines like other blocks.
+md.use(katex, {
+  enableFencedBlocks: true,
+  throwOnError: false,
+  katex: { renderToString: renderMath } as unknown as typeof Katex,
+});
+
+function withSourceMap(html: string, token: Token): string {
+  if (!token.map) return html;
+  return html.replace(/^<p(?=[\s>])/, `<p data-source-map="${token.map[0]},${token.map[1]}"`);
+}
+
+const mathBlock = md.renderer.rules.math_block!;
+md.renderer.rules.math_block = (tokens, idx, options, env, self) =>
+  withSourceMap(mathBlock(tokens, idx, options, env, self), tokens[idx]);
+const mathFence = md.renderer.rules.fence!;
+md.renderer.rules.fence = (tokens, idx, options, env, self) => {
+  const html = mathFence(tokens, idx, options, env, self);
+  return tokens[idx].info.trim().toLowerCase() === "math" ? withSourceMap(html, tokens[idx]) : html;
 };
 
 // Add target=_blank to external http(s) links.

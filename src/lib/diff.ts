@@ -7,7 +7,9 @@
 // class `diff-pair`, and a word diff marks the deleted text in the old block
 // with <del class="diff-del"> and the inserted text in the new block with
 // <ins class="diff-ins">. Changes that only short equal text separates form
-// one change. Table cells get the deleted and the inserted text inline.
+// one change. Table cells get the deleted and the inserted text inline. A
+// changed text block with a formula shows as the old and the new block,
+// without a word diff.
 // Other changed blocks with the same tag are compared child by child. Blocks
 // that exist in one document only are marked with the classes `diff-added`
 // and `diff-removed`.
@@ -51,6 +53,15 @@ function elementKey(el: Element, imageKey: ImageKey): string {
 function isTextual(el: Element): boolean {
   if (el.matches(ATOMIC) || el.querySelector(ATOMIC)) return false;
   return Array.from(el.querySelectorAll("*")).every((e) => INLINE.has(e.tagName));
+}
+
+// True if `el` holds only inline content, with at least one formula. A word
+// diff would break the formulas, so the block is compared as a whole.
+function isTextWithMath(el: Element): boolean {
+  if (!el.querySelector(".katex")) return false;
+  const inline = (e: Element): boolean =>
+    Array.from(e.children).every((c) => c.matches(".katex") || (INLINE.has(c.tagName) && inline(c)));
+  return inline(el);
 }
 
 function markAdded(el: Element) {
@@ -210,6 +221,12 @@ function diffPair(oldEl: Element, newEl: Element, imageKey: ImageKey) {
   }
   if (newEl.tagName === "IMG") {
     newEl.classList.add("diff-img-changed");
+    return;
+  }
+  const textLike = (e: Element) => isTextual(e) || isTextWithMath(e);
+  if ((isTextWithMath(oldEl) || isTextWithMath(newEl)) && textLike(oldEl) && textLike(newEl)) {
+    newEl.parentNode!.insertBefore(removedCopy(oldEl), newEl);
+    markAdded(newEl);
     return;
   }
   if (isTextual(oldEl) && isTextual(newEl)) {
