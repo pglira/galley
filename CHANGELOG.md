@@ -18,7 +18,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - Dark app with a selectable paper color for the document.
 - `scripts/install.sh`: installs the launcher, a desktop entry and an icon.
 - Page width setting.
-- LaTeX math with KaTeX: `$...$`, `$$...$$` and `math` code blocks. Quotes of annotations contain the TeX source of a formula.
+- LaTeX math with KaTeX: `$...$`, `\(...\)`, `$$...$$`, `\[...\]` and `math` code blocks. Quotes of annotations contain the TeX source of a formula.
+- GitHub alerts (`> [!NOTE]` and the other kinds), definition lists and highlighted text (`==text==`). `GALLEY.md` lists the Markdown features for the agent.
 - Search in all documents and annotations, with jump to the match.
 - PDF export of the document as it shows, with the diff if it is on.
 - Editor for `GALLEY.md`, with a revert to the default of the installed Galley version.

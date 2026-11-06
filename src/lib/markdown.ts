@@ -3,6 +3,8 @@ import type Token from "markdown-it/lib/token.mjs";
 import anchor from "markdown-it-anchor";
 import footnote from "markdown-it-footnote";
 import taskLists from "markdown-it-task-lists";
+import deflist from "markdown-it-deflist";
+import mark from "markdown-it-mark";
 import frontMatter from "markdown-it-front-matter";
 import katex from "@vscode/markdown-it-katex";
 import type Katex from "katex";
@@ -32,6 +34,39 @@ md.use(anchor, {
 });
 md.use(footnote);
 md.use(taskLists, { enabled: true, label: false });
+// Definition lists (`Term` and `: Definition` on the next line) and
+// highlighted text (`==text==`).
+md.use(deflist);
+md.use(mark);
+
+// GitHub alerts: a block quote whose first line is `[!NOTE]`, `[!TIP]`,
+// `[!IMPORTANT]`, `[!WARNING]` or `[!CAUTION]` renders as
+// <div class="markdown-alert markdown-alert-<kind>">. The title of the alert
+// comes from CSS, so it is not part of the text of the document.
+const ALERT = /^\[!(note|tip|important|warning|caution)\][ \t]*(?:\n|$)/i;
+
+md.core.ruler.after("block", "alerts", (state) => {
+  const tokens = state.tokens;
+  for (let i = 0; i + 2 < tokens.length; i++) {
+    const open = tokens[i];
+    const inline = tokens[i + 2];
+    if (open.type !== "blockquote_open" || tokens[i + 1].type !== "paragraph_open" || inline.type !== "inline") continue;
+    const match = ALERT.exec(inline.content);
+    if (!match) continue;
+    let depth = 0;
+    let j = i;
+    for (; j < tokens.length; j++) {
+      if (tokens[j].type === "blockquote_open") depth++;
+      else if (tokens[j].type === "blockquote_close" && --depth === 0) break;
+    }
+    open.tag = "div";
+    if (tokens[j]) tokens[j].tag = "div";
+    open.attrSet("class", `markdown-alert markdown-alert-${match[1].toLowerCase()}`);
+    inline.content = inline.content.slice(match[0].length);
+    // A marker alone in its paragraph leaves an empty paragraph.
+    if (!inline.content.trim()) tokens.splice(i + 1, 3);
+  }
+});
 
 // Strip YAML front matter so files written for static-site generators,
 // Obsidian, MDX, or spec corpora don't render as a giant setext heading
@@ -168,6 +203,55 @@ md.use(katex, {
   throwOnError: false,
   katex: { renderToString: renderMath } as unknown as typeof Katex,
 });
+
+// LaTeX delimiters `\(...\)` in a line of text and `\[...\]` for a formula
+// on its own lines. They give the same tokens as `$...$` and `$$...$$`.
+md.inline.ruler.before("escape", "math_paren", (state, silent) => {
+  const start = state.pos;
+  if (!state.src.startsWith("\\(", start)) return false;
+  const end = state.src.indexOf("\\)", start + 2);
+  if (end < 0 || !state.src.slice(start + 2, end).trim()) return false;
+  if (!silent) {
+    const token = state.push("math_inline", "math", 0);
+    token.markup = "\\(";
+    token.content = state.src.slice(start + 2, end);
+  }
+  state.pos = end + 2;
+  return true;
+});
+
+md.block.ruler.after(
+  "blockquote",
+  "math_bracket",
+  (state, startLine, endLine, silent) => {
+    if (state.sCount[startLine] - state.blkIndent >= 4) return false;
+    const lineText = (l: number) => state.src.slice(state.bMarks[l] + state.tShift[l], state.eMarks[l]);
+    const first = lineText(startLine);
+    if (!first.startsWith("\\[")) return false;
+    const lines = [first.slice(2)];
+    let line = startLine;
+    // The formula ends at the first line that ends with `\]`. An empty line
+    // before it means that the block is not a formula.
+    while (!lines[lines.length - 1].trimEnd().endsWith("\\]")) {
+      line++;
+      if (line >= endLine || state.isEmpty(line)) return false;
+      lines.push(lineText(line));
+    }
+    const last = lines.length - 1;
+    lines[last] = lines[last].trimEnd().slice(0, -2);
+    const content = lines.join("\n").trim();
+    if (!content) return false;
+    if (silent) return true;
+    const token = state.push("math_block", "math", 0);
+    token.block = true;
+    token.content = content;
+    token.map = [startLine, line + 1];
+    token.markup = "\\[";
+    state.line = line + 1;
+    return true;
+  },
+  { alt: ["paragraph", "reference", "blockquote", "list"] },
+);
 
 function withSourceMap(html: string, token: Token): string {
   if (!token.map) return html;

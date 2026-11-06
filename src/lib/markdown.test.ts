@@ -137,4 +137,19 @@ describe("renderMarkdown", () => {
     // The mid-document block must NOT be silently swallowed.
     expect(html).toContain("foo: bar");
   });
+
+  it("renders GitHub alerts", () => {
+    const html = renderMarkdown("> [!WARNING]\n> Do *not* do this.\n\n> [!note]\n>\n> Two paragraphs.\n\n> [!TIP] text\n\n> Plain");
+    expect(html).toMatch(/<div class="markdown-alert markdown-alert-warning" data-source-map="0,2">\s*<p[^>]*>Do <em>not<\/em> do this.<\/p>\s*<\/div>/);
+    expect(html).toMatch(/<div class="markdown-alert markdown-alert-note"[^>]*>\s*<p[^>]*>Two paragraphs.<\/p>\s*<\/div>/);
+    expect(html).not.toContain("[!note]");
+    expect(html).toContain("[!TIP] text");
+    expect(html).toMatch(/<blockquote[^>]*>\s*<p[^>]*>Plain/);
+  });
+
+  it("renders definition lists and highlighted text", () => {
+    const html = renderMarkdown("Term\n: The *definition*.\n\nA ==marked== word.");
+    expect(html).toMatch(/<dl[^>]*>\s*<dt[^>]*>Term<\/dt>\s*<dd[^>]*>The <em>definition<\/em>.<\/dd>/);
+    expect(html).toContain("A <mark>marked</mark> word.");
+  });
 });

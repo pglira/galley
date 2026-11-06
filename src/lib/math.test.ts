@@ -20,6 +20,18 @@ describe("math", () => {
     expect(html).not.toContain("<math");
   });
 
+  it("renders the delimiters \\(...\\) and \\[...\\]", () => {
+    const html = renderMarkdown("Area \\(\\pi r^2\\) here.\n\n\\[\nx = \\frac{a}{b}\n\\]\n\nText\n\\[ y^2 \\]");
+    expect(html).toMatch(/<p data-source-map="0,1">Area <span class="katex"><span class="katex-tex">\\pi r\^2<\/span>/);
+    expect(html).toMatch(/<p data-source-map="2,5" class="katex-block">.*<span class="katex-tex">x = \\frac\{a\}\{b\}<\/span>/s);
+    expect(html).toMatch(/<p data-source-map="7,8" class="katex-block">.*<span class="katex-tex">y\^2<\/span>/s);
+  });
+
+  it("keeps escaped brackets and parentheses as text", () => {
+    expect(renderMarkdown("See \\[1\\] and \\(a).")).toContain("See [1] and (a).");
+    expect(renderMarkdown("\\[\n\nno end")).not.toContain("katex");
+  });
+
   it("leaves dollar amounts as text", () => {
     expect(renderMarkdown("It costs $5 and $6.")).not.toContain("katex");
   });

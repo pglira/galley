@@ -78,13 +78,35 @@ The reviewer reads the documents, not the chat. Put all content into the documen
 - Do not repeat the content of the document in the chat. Do not list the annotations or how you addressed them.
 - Ask questions in the document, not in the chat. Ask in the chat only if you cannot write the snapshot without an answer.
 
+## Markdown features
+
+Galley renders CommonMark with these extensions. Use them where they help the reviewer.
+
+- GitHub tables, task lists, strikethrough (`~~text~~`) and footnotes (`[^1]`).
+- Highlighted text: `==text==`.
+- Math in LaTeX: `$...$` or `\(...\)` in a line of text. For a formula on its own lines, use `$$...$$`, `\[...\]` or a `math` code block. Galley renders it with KaTeX.
+- Diagrams in a `mermaid` code block.
+- Code blocks with a language, for example ` ```python `, get syntax colors.
+- Alerts: a block quote that starts with `[!NOTE]`, `[!TIP]`, `[!IMPORTANT]`, `[!WARNING]` or `[!CAUTION]` on its own line.
+
+  ```markdown
+  > [!WARNING]
+  > The migration deletes the old table.
+  ```
+
+- Definition lists: a term on one line, and its definition on the next line after `: `.
+
+  ```markdown
+  Latency
+  : The time from the request to the first byte of the response.
+  ```
+
 ## Rules
 
 - Never change an existing snapshot. Always make a new snapshot.
 - Use only relative paths for figures, for example `![Training loss over the epochs](images/loss.png)`. Do not use absolute paths or URLs.
 - Give each figure a caption. Put the figure in its own paragraph, with an empty line before and after it. The alt text is the caption: write it as a short sentence that tells what the figure shows.
 - Use PNG, JPEG, SVG, GIF or WebP for figures.
-- Write math in LaTeX: `$...$` in a line of text, and `$$...$$` or a `math` code block for a formula on its own line. Galley renders it with KaTeX.
 - Never write or change `annotations.md` or the `annotations/` directory. Do not copy `annotations/` into a new snapshot.
 
 ## Format of `annotations.md`

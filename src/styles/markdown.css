@@ -72,6 +72,53 @@
   margin: calc(1 * var(--doc-rem)) 0;
 }
 
+/* GitHub alerts. The title comes from CSS, so it is not part of the text. */
+.markdown-body .markdown-alert {
+  --alert: var(--primary);
+  border-left: 3px solid var(--alert);
+  background: color-mix(in oklch, var(--alert) 6%, transparent);
+  padding: calc(0.5 * var(--doc-rem)) calc(1 * var(--doc-rem));
+  margin: calc(1 * var(--doc-rem)) 0;
+}
+.markdown-body .markdown-alert::before {
+  display: block;
+  margin-bottom: calc(0.25 * var(--doc-rem));
+  color: var(--alert);
+  font-weight: 600;
+  font-size: 0.92em;
+}
+.markdown-body .markdown-alert > :first-child { margin-top: 0; }
+.markdown-body .markdown-alert > :last-child { margin-bottom: 0; }
+.markdown-body .markdown-alert-note::before { content: "Note"; }
+.markdown-body .markdown-alert-tip { --alert: oklch(0.55 0.11 150); }
+.markdown-body .markdown-alert-tip::before { content: "Tip"; }
+.markdown-body .markdown-alert-important { --alert: oklch(0.52 0.13 300); }
+.markdown-body .markdown-alert-important::before { content: "Important"; }
+.markdown-body .markdown-alert-warning { --alert: oklch(0.6 0.12 70); }
+.markdown-body .markdown-alert-warning::before { content: "Warning"; }
+.markdown-body .markdown-alert-caution { --alert: oklch(0.55 0.17 25); }
+.markdown-body .markdown-alert-caution::before { content: "Caution"; }
+.paper-dark .markdown-body .markdown-alert-tip { --alert: oklch(0.72 0.11 150); }
+.paper-dark .markdown-body .markdown-alert-important { --alert: oklch(0.72 0.12 300); }
+.paper-dark .markdown-body .markdown-alert-warning { --alert: oklch(0.78 0.12 75); }
+.paper-dark .markdown-body .markdown-alert-caution { --alert: oklch(0.7 0.15 25); }
+
+/* Definition lists. */
+.markdown-body dl { margin: calc(1 * var(--doc-rem)) 0; }
+.markdown-body dt { font-weight: 600; margin-top: calc(0.75 * var(--doc-rem)); }
+.markdown-body dt:first-child { margin-top: 0; }
+.markdown-body dd { margin: calc(0.25 * var(--doc-rem)) 0 0 calc(1.5 * var(--doc-rem)); }
+.markdown-body dd > p:first-child { margin-top: 0; }
+.markdown-body dd > p:last-child { margin-bottom: 0; }
+
+/* Highlighted text (`==text==`). */
+.markdown-body mark:not([class]) {
+  background: oklch(0.92 0.1 95);
+  color: inherit;
+  padding: 0 0.1em;
+}
+.paper-dark .markdown-body mark:not([class]) { background: oklch(0.45 0.08 95); }
+
 .markdown-body hr {
   border: none;
   border-top: 1px solid var(--border);
@@ -356,7 +403,7 @@
   #print-root .markdown-body { padding: 0; }
   #print-root .copy-code-btn,
   #print-root .header-anchor { display: none; }
-  #print-root :is(figure, img, pre, table, blockquote, .mermaid-block) { break-inside: avoid; }
+  #print-root :is(figure, img, pre, table, blockquote, .markdown-alert, .mermaid-block) { break-inside: avoid; }
   #print-root :is(h1, h2, h3, h4, h5, h6) { break-after: avoid; }
 }
 

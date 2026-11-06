@@ -22,7 +22,7 @@ Galley is a fork of Marky. Keep the scope small: no editor for documents (only f
 
 ## Stack (do not swap without asking)
 
-Tauri v2 (Rust), Vite + React + TypeScript, pnpm, markdown-it, Shiki, mermaid, KaTeX (`@vscode/markdown-it-katex`), shadcn/ui, Tailwind CSS, DOMPurify, `diff` (jsdiff), `pdfjs-dist` (PDF.js), CodeMirror 6 (`@uiw/react-codemirror`, only in the editor for `GALLEY.md`).
+Tauri v2 (Rust), Vite + React + TypeScript, pnpm, markdown-it, Shiki, mermaid, KaTeX (`@vscode/markdown-it-katex`), markdown-it plugins (anchor, footnote, task lists, front matter, deflist, mark), shadcn/ui, Tailwind CSS, DOMPurify, `diff` (jsdiff), `pdfjs-dist` (PDF.js), CodeMirror 6 (`@uiw/react-codemirror`, only in the editor for `GALLEY.md`).
 
 ## Layout
 
