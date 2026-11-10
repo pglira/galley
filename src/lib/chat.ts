@@ -19,8 +19,8 @@ export type ChatItem =
   | { kind: "text"; text: string }
   // A tool call; `result` is undefined while the tool runs.
   | { kind: "tool"; id: string; name: string; summary: string; result?: string; isError?: boolean }
-  // The end of a turn with its token counts.
-  | { kind: "turn"; inputTokens: number; outputTokens: number; error: string | null }
+  // The end of a turn with the size of the context in tokens.
+  | { kind: "turn"; contextTokens: number; error: string | null }
   | { kind: "error"; text: string };
 
 export interface Chat {
@@ -57,7 +57,7 @@ export function applyToItems(items: ChatItem[], ev: ChatEvent): ChatItem[] {
     case "result":
       return [
         ...items,
-        { kind: "turn", inputTokens: ev.input_tokens, outputTokens: ev.output_tokens, error: ev.error },
+        { kind: "turn", contextTokens: ev.context_tokens, error: ev.error },
       ];
     case "exit":
       return ev.error ? [...items, { kind: "error", text: ev.error }] : items;

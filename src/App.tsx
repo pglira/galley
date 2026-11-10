@@ -21,6 +21,7 @@ import { SearchBox, SearchResults } from "@/components/SearchPanel";
 import { TableOfContents } from "@/components/TableOfContents";
 import { TabBar } from "@/components/TabBar";
 import { ChatPanel } from "@/components/ChatPanel";
+import { NewDocumentDialog } from "@/components/NewDocumentDialog";
 import { useChats } from "@/lib/useChats";
 import { NEW_TASK, newNames } from "@/lib/chat";
 import { tauri, assetUrl, type Galley, type Document, type SearchHit, type Snapshot } from "@/lib/tauri";
@@ -131,6 +132,7 @@ function GalleyView({ initial, name, shown, onOpenDir, onBusy }: GalleyViewProps
   }, []);
   // The chat panel shows the chat of the selected document, or of a new task.
   const [chatTarget, setChatTarget] = useState<"doc" | "new">("doc");
+  const [newDocOpen, setNewDocOpen] = useState(false);
 
   const doc: Document | null = galley?.documents.find((r) => r.name === selection?.document) ?? null;
   const snapshot = doc?.snapshots.find((s) => s.name === selection?.snapshot) ?? null;
@@ -197,6 +199,17 @@ function GalleyView({ initial, name, shown, onOpenDir, onBusy }: GalleyViewProps
       }
     }
   }, [galley]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Starts the agent with the initial prompt of a new document, in a new
+  // session, and shows its output.
+  const startNewDocument = (prompt: string) => {
+    if (chats.chats[NEW_TASK]?.busy) return;
+    chats.reset(NEW_TASK);
+    newTaskKnown.current = null;
+    sendChat(NEW_TASK, prompt);
+    setChatTarget("new");
+    setChatOpen(true);
+  };
 
   const sendChat = (key: string, text: string) => {
     if (key === NEW_TASK && !chats.chats[NEW_TASK]) newTaskKnown.current = galley.documents.map((d) => d.name);
@@ -657,6 +670,19 @@ function GalleyView({ initial, name, shown, onOpenDir, onBusy }: GalleyViewProps
             setChatTarget("doc");
           }}
           busy={busyDocs}
+          onNewDocument={chats.available ? () => setNewDocOpen(true) : null}
+          newDocument={
+            chats.chats[NEW_TASK]
+              ? {
+                  busy: chats.chats[NEW_TASK].busy,
+                  selected: chatKey === NEW_TASK,
+                  onSelect: () => {
+                    setChatTarget("new");
+                    setChatOpen(true);
+                  },
+                }
+              : null
+          }
           onOpenDir={onOpenDir}
           onInitRules={onInitRules}
           onEditRules={() => setRulesOpen(true)}
@@ -804,19 +830,17 @@ function GalleyView({ initial, name, shown, onOpenDir, onBusy }: GalleyViewProps
               style={{ height: chatHeight, maxHeight: "calc(100% - 6rem)" }}
             >
               <ChatPanel
-                title={chatKey === NEW_TASK ? "New task" : documentLabel(chatKey).title}
+                title={chatKey === NEW_TASK ? "New document" : documentLabel(chatKey).title}
                 newTask={chatKey === NEW_TASK}
                 chat={chats.chats[chatKey]}
                 available={chats.available}
                 model={chatModel}
                 onModel={setChatModel}
-                onSend={(text) => sendChat(chatKey, text)}
                 onStop={() => chats.stop(chatKey)}
                 onNewSession={() => {
                   if (chatKey === NEW_TASK) newTaskKnown.current = null;
                   chats.reset(chatKey);
                 }}
-                onNewTask={() => setChatTarget("new")}
               />
             </div>
           </aside>
@@ -859,6 +883,13 @@ function GalleyView({ initial, name, shown, onOpenDir, onBusy }: GalleyViewProps
         onClose={() => setRulesOpen(false)}
         onSaved={() => setNotice("Saved GALLEY.md")}
         onError={setError}
+      />
+      <NewDocumentDialog
+        open={newDocOpen}
+        onClose={() => setNewDocOpen(false)}
+        model={chatModel}
+        onModel={setChatModel}
+        onStart={startNewDocument}
       />
       <PdfExportDialog open={pdfOpen} options={pdf} onClose={() => setPdfOpen(false)} onExport={runExportPdf} />
     </div>

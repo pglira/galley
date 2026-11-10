@@ -1,5 +1,15 @@
 import { useState } from "react";
-import { ChevronDown, ChevronRight, Ellipsis, FolderOpen, Loader2, MessageSquare, ScrollText, Trash2 } from "lucide-react";
+import {
+  ChevronDown,
+  ChevronRight,
+  Ellipsis,
+  FilePlus,
+  FolderOpen,
+  Loader2,
+  MessageSquare,
+  ScrollText,
+  Trash2,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ResizeHandle } from "@/components/ResizeHandle";
 import {
@@ -33,6 +43,10 @@ interface Props {
   onSelect: (s: Selection) => void;
   // The names of the documents whose chat runs a turn.
   busy?: Set<string>;
+  // Opens the dialog for a new document; null if Galley does not find `claude`.
+  onNewDocument?: (() => void) | null;
+  // The new document that the agent writes and that has no directory yet.
+  newDocument?: { busy: boolean; selected: boolean; onSelect: () => void } | null;
   onOpenDir: () => void;
   onInitRules: () => void;
   onEditRules: () => void;
@@ -65,6 +79,8 @@ export function DocumentTree({
   selection,
   onSelect,
   busy,
+  onNewDocument,
+  newDocument,
   onOpenDir,
   onInitRules,
   onEditRules,
@@ -105,6 +121,17 @@ export function DocumentTree({
           {name || "Galley"}
         </span>
         <div className="flex shrink-0 items-center">
+          {onNewDocument && (
+            <Button
+              variant="ghost"
+              size="icon-xs"
+              onClick={onNewDocument}
+              disabled={newDocument?.busy}
+              title={newDocument?.busy ? "The agent writes a new document" : "New document: start the agent with a prompt"}
+            >
+              <FilePlus />
+            </Button>
+          )}
           {galley?.has_rules && (
             <Button variant="ghost" size="icon-xs" onClick={onEditRules} title="Edit GALLEY.md">
               <ScrollText />
@@ -137,7 +164,23 @@ export function DocumentTree({
         {!results && !galley && (
           <p className="px-3 py-2 text-xs text-muted-foreground">Open a galley directory to see its documents.</p>
         )}
-        {!results && galley && galley.documents.length === 0 && (
+        {!results && newDocument && (
+          <div
+            className={cn(
+              "flex cursor-pointer items-center gap-1 px-2 py-1 hover:bg-sidebar-accent",
+              newDocument.selected && "bg-sidebar-accent font-medium"
+            )}
+            onClick={newDocument.onSelect}
+            title="Show the output of the agent"
+          >
+            <FilePlus className="size-3.5 shrink-0" />
+            <span className="min-w-0 flex-1 truncate text-sm italic">New document</span>
+            {newDocument.busy && (
+              <Loader2 className="size-3.5 shrink-0 animate-spin text-primary" aria-label="The agent works" />
+            )}
+          </div>
+        )}
+        {!results && galley && galley.documents.length === 0 && !newDocument && (
           <p className="px-3 py-2 text-xs text-muted-foreground">No documents yet.</p>
         )}
         {!results && galley?.documents.map((doc) => {

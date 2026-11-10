@@ -194,7 +194,7 @@ export function Toolbar({
         </Button>
         {sendPrompt && (
           <Button
-            variant="outline"
+            variant={sendPrompt.enabled ? "default" : "outline"}
             size="xs"
             className="ml-1 text-[13px]"
             disabled={!sendPrompt.enabled}

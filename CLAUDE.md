@@ -4,7 +4,7 @@
 
 Galley is a Tauri desktop app to review Markdown and PDF documents from AI agents. It opens a **galley directory**, shows its documents and snapshots, lets the user annotate text, diffs snapshots, and copies a prompt for the agent. See `README.md` for the workflow and `PLAN.md` for the scope.
 
-Galley is a fork of Marky. Keep the scope small: no editor for documents (only for `GALLEY.md`). Files are the main channel to the agent: **Copy prompt** works for agents in containers and on remote hosts. **Send prompt** to a local Claude Code (`claude` command) is the only agent integration. The annotations are the channel: there is no chat; the panel shows the output of the agent read only, and only a new task has a text field.
+Galley is a fork of Marky. Keep the scope small: no editor for documents (only for `GALLEY.md`). Files are the main channel to the agent: **Copy prompt** works for agents in containers and on remote hosts. **Send prompt** to a local Claude Code (`claude` command) is the only agent integration. The annotations are the channel: there is no chat; the panel shows the output of the agent read only. The only free text is the initial prompt of a new document (`src/components/NewDocumentDialog.tsx`, from the document list).
 
 ## Galley directory
 
@@ -43,7 +43,7 @@ Tauri v2 (Rust), `claude-codes` (Claude Code stream-json protocol), Vite + React
 - `src/lib/print.ts` — PDF export: renders the document into `#print-root`, which only print media shows.
 - `src/components/PdfExportDialog.tsx` — the options of the PDF export (`src/lib/pdfOptions.ts`), stored in the preferences as `pdf`.
 - `src/components/RulesEditor.tsx` — the dialog to edit `GALLEY.md`, with the Markdown editor `src/components/MarkdownEditor.tsx` (CodeMirror, syntax colors).
-- `src/components/ChatPanel.tsx` — the output of the agent, read only, below the annotations in the right sidebar, and the text field of a new task. `src/lib/useChats.ts` holds the chats of a galley (one per document, `NEW_TASK` for a new task), `src/lib/chat.ts` the state logic.
+- `src/components/ChatPanel.tsx` — the output of the agent, read only, below the annotations in the right sidebar. `src/lib/useChats.ts` holds the chats of a galley (one per document, `NEW_TASK` for a new task), `src/lib/chat.ts` the state logic.
 - `src/components/SearchPanel.tsx` — search in all documents (`search` command in `galley.rs`).
 - `src/components/TableOfContents.tsx` — the headings of the shown document below the document tree (`src/lib/toc.ts`).
 

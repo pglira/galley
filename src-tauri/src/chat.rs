@@ -40,9 +40,10 @@ pub enum ChatEvent {
     ToolUse { id: String, name: String, summary: String },
     /// The result of the tool call `id`.
     ToolResult { id: String, text: String, is_error: bool },
-    /// The end of a turn, with its token counts. `error` is set when the turn
-    /// failed.
-    Result { input_tokens: u64, output_tokens: u64, error: Option<String> },
+    /// The end of a turn. `context_tokens` is the size of the context after
+    /// the last API call of the turn: its input (with cached tokens) and its
+    /// output. `error` is set when the turn failed.
+    Result { context_tokens: u64, error: Option<String> },
     /// The process stopped. `error` is set when it stopped unexpectedly.
     Exit { error: Option<String> },
 }
@@ -173,11 +174,19 @@ fn is_internal_text(text: &str) -> bool {
 }
 
 /// Converts one message of `claude` into chat events. `with_user` includes the
-/// texts of the user. Messages of subagents give no events.
-pub fn events(output: &ClaudeOutput, root: &Path, with_user: bool) -> Vec<ChatEvent> {
+/// texts of the user. Messages of subagents give no events. `context` holds
+/// the context size of the last API call; assistant messages set it, and the
+/// result of a turn reports it.
+pub fn events(output: &ClaudeOutput, root: &Path, with_user: bool, context: &mut u64) -> Vec<ChatEvent> {
     let mut out = Vec::new();
     match output {
         ClaudeOutput::Assistant(m) if m.parent_tool_use_id.is_none() => {
+            if let Some(u) = &m.message.usage {
+                *context = u64::from(u.input_tokens)
+                    + u64::from(u.cache_creation_input_tokens)
+                    + u64::from(u.cache_read_input_tokens)
+                    + u64::from(u.output_tokens);
+            }
             for block in &m.message.content {
                 match block {
                     ContentBlock::Text(t) if !t.text.trim().is_empty() => {
@@ -208,10 +217,6 @@ pub fn events(output: &ClaudeOutput, root: &Path, with_user: bool) -> Vec<ChatEv
             }
         }
         ClaudeOutput::Result(r) => {
-            let usage = r.usage.as_ref();
-            let input_tokens = usage.map_or(0, |u| {
-                u64::from(u.input_tokens) + u64::from(u.cache_creation_input_tokens) + u64::from(u.cache_read_input_tokens)
-            });
             let error = r.is_error.then(|| {
                 if r.errors.is_empty() {
                     r.result.clone().unwrap_or_else(|| "The turn failed.".into())
@@ -220,14 +225,12 @@ pub fn events(output: &ClaudeOutput, root: &Path, with_user: bool) -> Vec<ChatEv
                 }
             });
             out.push(ChatEvent::Result {
-                input_tokens,
-                output_tokens: usage.map_or(0, |u| u64::from(u.output_tokens)),
+                context_tokens: *context,
                 error,
             });
         }
         ClaudeOutput::Error(e) => out.push(ChatEvent::Result {
-            input_tokens: 0,
-            output_tokens: 0,
+            context_tokens: *context,
             error: Some(format!("{e:?}")),
         }),
         _ => {}
@@ -240,6 +243,7 @@ pub fn events(output: &ClaudeOutput, root: &Path, with_user: bool) -> Vec<ChatEv
 /// events.
 pub fn history_events(transcript: &str, root: &Path) -> Vec<ChatEvent> {
     let mut out = Vec::new();
+    let mut context = 0;
     for line in transcript.lines() {
         let Ok(Value::Object(mut raw)) = serde_json::from_str::<Value>(line) else { continue };
         let flag = |k: &str| raw.get(k).and_then(Value::as_bool).unwrap_or(false);
@@ -252,7 +256,7 @@ pub fn history_events(transcript: &str, root: &Path) -> Vec<ChatEvent> {
             raw.remove("sessionId");
         }
         if let Ok(output) = serde_json::from_value::<ClaudeOutput>(Value::Object(raw)) {
-            out.extend(events(&output, root, true));
+            out.extend(events(&output, root, true, &mut context));
         }
     }
     out
@@ -384,6 +388,7 @@ async fn run(
     let mut lines = BufReader::with_capacity(1 << 20, stdout).lines();
     let mut killed = false;
     let mut busy = false;
+    let mut context = 0;
 
     loop {
         tokio::select! {
@@ -393,7 +398,7 @@ async fn run(
                         if matches!(output, ClaudeOutput::Result(_)) {
                             busy = false;
                         }
-                        for event in events(&output, root, false) {
+                        for event in events(&output, root, false, &mut context) {
                             emit(app, chat, &event);
                         }
                     }
@@ -463,7 +468,7 @@ mod tests {
             r#"{"type":"mode","mode":"normal","sessionId":"x"}"#,
             r#"{"type":"user","isSidechain":false,"message":{"role":"user","content":"Write a plan."},"sessionId":"916c32be-7000-4510-b9d2-e11a251b8ecf","uuid":"a"}"#,
             r#"{"type":"user","isMeta":true,"message":{"role":"user","content":"meta"},"sessionId":"916c32be-7000-4510-b9d2-e11a251b8ecf","uuid":"b"}"#,
-            r#"{"type":"assistant","message":{"id":"m1","type":"message","role":"assistant","model":"m","content":[{"type":"text","text":"Sure."},{"type":"tool_use","id":"t1","name":"Read","input":{"file_path":"/g/root/GALLEY.md"}}]},"sessionId":"916c32be-7000-4510-b9d2-e11a251b8ecf","session_id":"916c32be-7000-4510-b9d2-e11a251b8ecf","uuid":"c"}"#,
+            r#"{"type":"assistant","message":{"id":"m1","type":"message","role":"assistant","model":"m","content":[{"type":"text","text":"Sure."},{"type":"tool_use","id":"t1","name":"Read","input":{"file_path":"/g/root/GALLEY.md"}}],"usage":{"input_tokens":3,"cache_creation_input_tokens":100,"cache_read_input_tokens":20000,"output_tokens":50}},"sessionId":"916c32be-7000-4510-b9d2-e11a251b8ecf","session_id":"916c32be-7000-4510-b9d2-e11a251b8ecf","uuid":"c"}"#,
             r#"{"type":"user","message":{"role":"user","content":[{"type":"tool_result","tool_use_id":"t1","content":"rules"}]},"sessionId":"916c32be-7000-4510-b9d2-e11a251b8ecf","uuid":"d"}"#,
             r#"{"type":"user","message":{"role":"user","content":"<command-name>/clear</command-name>"},"sessionId":"916c32be-7000-4510-b9d2-e11a251b8ecf","uuid":"e"}"#,
             "not json",
@@ -485,7 +490,16 @@ mod tests {
     fn live_events_skip_user_text() {
         let line = r#"{"type":"user","message":{"role":"user","content":"hi"},"session_id":"916c32be-7000-4510-b9d2-e11a251b8ecf"}"#;
         let output = ClaudeOutput::parse_json(line).unwrap();
-        assert!(events(&output, Path::new(ROOT), false).is_empty());
+        assert!(events(&output, Path::new(ROOT), false, &mut 0).is_empty());
+    }
+
+    #[test]
+    fn assistant_usage_sets_the_context_size() {
+        let line = r#"{"type":"assistant","message":{"id":"m1","type":"message","role":"assistant","model":"m","content":[],"usage":{"input_tokens":3,"cache_creation_input_tokens":100,"cache_read_input_tokens":20000,"output_tokens":50}},"session_id":"916c32be-7000-4510-b9d2-e11a251b8ecf"}"#;
+        let output = ClaudeOutput::parse_json(line).unwrap();
+        let mut context = 0;
+        events(&output, Path::new(ROOT), false, &mut context);
+        assert_eq!(context, 20153);
     }
 
     #[test]

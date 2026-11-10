@@ -55,7 +55,7 @@ export type ChatEvent =
   | { kind: "text"; text: string }
   | { kind: "tool_use"; id: string; name: string; summary: string }
   | { kind: "tool_result"; id: string; text: string; is_error: boolean }
-  | { kind: "result"; input_tokens: number; output_tokens: number; error: string | null }
+  | { kind: "result"; context_tokens: number; error: string | null }
   | { kind: "exit"; error: string | null };
 
 // The page setup of a PDF export. `paper` is a libpaper paper name or

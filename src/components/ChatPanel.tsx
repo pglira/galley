@@ -4,9 +4,7 @@ import {
   ChevronDown,
   ChevronRight,
   Loader2,
-  Plus,
   RotateCcw,
-  Send,
   Square,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -23,21 +21,18 @@ import { CHAT_MODELS, formatTokens, type Chat, type ChatItem } from "@/lib/chat"
 import { cn } from "@/lib/utils";
 
 interface Props {
-  // The title of the chat: the document, or "New task".
+  // The title of the output: the document, or "New document".
   title: string;
-  // True for the chat of a new task.
+  // True for the output of a new document that the agent still writes.
   newTask: boolean;
   chat: Chat | undefined;
   // False if Galley does not find `claude`.
   available: boolean;
   model: string;
   onModel: (model: string) => void;
-  onSend: (text: string) => void;
   onStop: () => void;
   // Starts a new session for the document.
   onNewSession: () => void;
-  // Shows the chat of a new task.
-  onNewTask: () => void;
 }
 
 // Text of the assistant as Markdown. Web links open in the browser.
@@ -102,9 +97,9 @@ function Item({ item }: { item: ChatItem }) {
           {item.error && <div className="text-xs whitespace-pre-wrap text-destructive">{item.error}</div>}
           <div
             className="text-right text-[11px] text-muted-foreground"
-            title="Input tokens (with cached tokens) and output tokens of the turn"
+            title="Size of the context in tokens at the end of the turn"
           >
-            {formatTokens(item.inputTokens)} in · {formatTokens(item.outputTokens)} out
+            {formatTokens(item.contextTokens)} context
           </div>
         </div>
       );
@@ -118,8 +113,8 @@ function Item({ item }: { item: ChatItem }) {
   }
 }
 
-// The output of `claude` for the shown document, read only, or the chat of a
-// new task, which has a text field for the task.
+// The output of `claude` for the shown document or for a new document, read
+// only. The annotations and Send prompt are the channel to the agent.
 export function ChatPanel({
   title,
   newTask,
@@ -127,12 +122,9 @@ export function ChatPanel({
   available,
   model,
   onModel,
-  onSend,
   onStop,
   onNewSession,
-  onNewTask,
 }: Props) {
-  const [text, setText] = useState("");
   const scrollRef = useRef<HTMLDivElement>(null);
   const stickRef = useRef(true);
   const busy = chat?.busy ?? false;
@@ -148,14 +140,6 @@ export function ChatPanel({
   useEffect(() => {
     stickRef.current = true;
   }, [chat?.session, title]);
-
-  const submit = () => {
-    const t = text.trim();
-    if (!t || busy || !available) return;
-    onSend(t);
-    setText("");
-    stickRef.current = true;
-  };
 
   const modelLabel = CHAT_MODELS.find((m) => m.id === model)?.label ?? model;
 
@@ -192,15 +176,6 @@ export function ChatPanel({
         >
           <RotateCcw />
         </Button>
-        <Button
-          variant="ghost"
-          size="icon-xs"
-          disabled={newTask}
-          onClick={onNewTask}
-          title="New task: the agent makes a new document"
-        >
-          <Plus />
-        </Button>
       </div>
 
       <div
@@ -219,7 +194,7 @@ export function ChatPanel({
         ) : items.length === 0 ? (
           <p className="text-xs text-muted-foreground">
             {newTask
-              ? "Describe a new task. The agent makes a new document for it, and its output then belongs to that document."
+              ? "Start a new document with the plus icon above the document list."
               : "The output of the agent for this document shows here. Annotate the document and click Send prompt."}
           </p>
         ) : (
@@ -237,46 +212,13 @@ export function ChatPanel({
         )}
       </div>
 
-      {newTask ? (
-      <div className="shrink-0 border-t p-2">
-        <textarea
-          className="block max-h-48 min-h-16 w-full resize-y border bg-background px-2 py-1.5 text-[13px] outline-none focus:border-primary"
-          placeholder={available ? "The new task (Enter starts it, Shift Enter makes a new line)" : ""}
-          disabled={!available || busy}
-          value={text}
-          onChange={(e) => setText(e.target.value)}
-          onKeyDown={(e) => {
-            // Plain keys belong to the text; shortcuts with Ctrl stay active.
-            if (!e.ctrlKey && !e.metaKey) e.stopPropagation();
-            if (e.key === "Enter" && !e.shiftKey && !e.nativeEvent.isComposing) {
-              e.preventDefault();
-              submit();
-            }
-          }}
-        />
-        <div className="mt-1.5 flex justify-end">
-          {busy ? (
-            <Button size="xs" variant="outline" onClick={onStop} title="Stop the current turn">
-              <Square />
-              Stop
-            </Button>
-          ) : (
-            <Button size="xs" disabled={!available || !text.trim()} onClick={submit}>
-              <Send />
-              Start task
-            </Button>
-          )}
+      {busy && (
+        <div className="flex shrink-0 justify-end border-t p-2">
+          <Button size="xs" variant="outline" onClick={onStop} title="Stop the current turn">
+            <Square />
+            Stop
+          </Button>
         </div>
-      </div>
-      ) : (
-        busy && (
-          <div className="flex shrink-0 justify-end border-t p-2">
-            <Button size="xs" variant="outline" onClick={onStop} title="Stop the current turn">
-              <Square />
-              Stop
-            </Button>
-          </div>
-        )
       )}
     </div>
   );

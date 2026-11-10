@@ -20,9 +20,9 @@ describe("chat", () => {
   it("ends the busy state at the end of a turn or of the process", () => {
     const busy = { ...newChat("s", true), busy: true };
     expect(applyEvent(busy, { kind: "text", text: "a" }).busy).toBe(true);
-    const ended = applyEvent(busy, { kind: "result", input_tokens: 5, output_tokens: 2, error: null });
+    const ended = applyEvent(busy, { kind: "result", context_tokens: 5, error: null });
     expect(ended.busy).toBe(false);
-    expect(ended.items).toEqual([{ kind: "turn", inputTokens: 5, outputTokens: 2, error: null }]);
+    expect(ended.items).toEqual([{ kind: "turn", contextTokens: 5, error: null }]);
     const exited = applyEvent(busy, { kind: "exit", error: "boom" });
     expect(exited.busy).toBe(false);
     expect(exited.items).toEqual([{ kind: "error", text: "boom" }]);
