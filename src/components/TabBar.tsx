@@ -1,5 +1,5 @@
 import { useRef, useState } from "react";
-import { Plus, X } from "lucide-react";
+import { Loader2, Plus, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
@@ -8,6 +8,8 @@ export interface TabInfo {
   label: string;
   // The path of the galley directory, or null for a tab with the start screen.
   path: string | null;
+  // True while a chat of the galley runs a turn.
+  busy?: boolean;
 }
 
 interface Props {
@@ -60,6 +62,7 @@ export function TabBar({ tabs, active, onActivate, onClose, onNew, onRename }: P
             ) : (
               <span className="min-w-0 truncate">{t.label}</span>
             )}
+            {t.busy && <Loader2 className="size-3 shrink-0 animate-spin text-primary" aria-label="The agent works" />}
             <Button
               variant="ghost"
               size="icon-xs"

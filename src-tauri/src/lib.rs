@@ -1,4 +1,5 @@
 mod capture;
+mod chat;
 mod cli;
 mod commands;
 mod error;
@@ -21,6 +22,7 @@ pub fn run() {
         .register_uri_scheme_protocol(protocol::SCHEME, protocol::handle)
         .manage(OpenDirs::default())
         .manage(InitialDir(initial))
+        .manage(chat::Chats::default())
         .invoke_handler(tauri::generate_handler![
             commands::get_initial_dir,
             commands::get_recent_dirs,
@@ -48,6 +50,13 @@ pub fn run() {
             commands::write_region_image,
             commands::save_preferences,
             commands::load_preferences,
+            commands::chat_claude_path,
+            commands::chat_sessions,
+            commands::set_chat_session,
+            commands::chat_history,
+            commands::chat_send,
+            commands::chat_interrupt,
+            commands::chat_close,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

@@ -5,6 +5,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ## [Unreleased]
 
 ### Added
+- **Send prompt** (`Ctrl Shift Enter`): sends the prompt for the annotations to a local Claude Code, one session per document, through the `claude-codes` crate. The right sidebar shows the output of the agent below the annotations, read only (`Ctrl J`). A new task in the sidebar starts a session that gets the new document of the agent.
 - Galley directories: a tree of documents and their snapshots, newest document first.
 - Annotations on selected text and general comments, saved in `annotations.md` of each snapshot.
 - Diff of a snapshot against a reference snapshot, with word-level changes, added and removed blocks, and changed images.

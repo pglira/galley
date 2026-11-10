@@ -1,4 +1,5 @@
 import { convertFileSrc, invoke } from "@tauri-apps/api/core";
+import { listen, type UnlistenFn } from "@tauri-apps/api/event";
 import { openUrl as openerOpenUrl } from "@tauri-apps/plugin-opener";
 
 export interface Snapshot {
@@ -44,7 +45,18 @@ export interface PreferencesPayload {
   copy_as_markdown: boolean | null;
   doc_font: string | null;
   pdf: unknown;
+  chat_model: string | null;
+  chat_height: number | null;
 }
+
+// One event of a chat with `claude` (`src-tauri/src/chat.rs`).
+export type ChatEvent =
+  | { kind: "user"; text: string }
+  | { kind: "text"; text: string }
+  | { kind: "tool_use"; id: string; name: string; summary: string }
+  | { kind: "tool_result"; id: string; text: string; is_error: boolean }
+  | { kind: "result"; input_tokens: number; output_tokens: number; error: string | null }
+  | { kind: "exit"; error: string | null };
 
 // The page setup of a PDF export. `paper` is a libpaper paper name or
 // "system"; the margins are in mm.
@@ -92,7 +104,29 @@ export const tauri = {
   exportPdf: (path: string, page: PageOptions) => invoke<void>("export_pdf", { path, page }),
   savePreferences: (prefs: PreferencesPayload) => invoke<void>("save_preferences", { prefs }),
   loadPreferences: () => invoke<PreferencesPayload>("load_preferences"),
+  // The path of the `claude` binary, or null if Galley does not find it.
+  chatClaudePath: () => invoke<string | null>("chat_claude_path"),
+  // The session ids of the chats of a galley, by document name.
+  chatSessions: (root: string) => invoke<Record<string, string>>("chat_sessions", { root }),
+  setChatSession: (root: string, doc: string, session: string | null) =>
+    invoke<void>("set_chat_session", { root, document: doc, session }),
+  chatHistory: (root: string, chat: string) => invoke<ChatEvent[]>("chat_history", { root, chat }),
+  // `doc` is the document directory of the chat, or null for a new task.
+  // `model` is null for the default model of `claude`.
+  chatSend: (root: string, chat: string, doc: string | null, model: string | null, text: string) =>
+    invoke<void>("chat_send", { root, chat, document: doc, model, text }),
+  chatInterrupt: (chat: string) => invoke<void>("chat_interrupt", { chat }),
+  chatClose: (chat: string) => invoke<void>("chat_close", { chat }),
 };
+
+// Calls `handler` for each event of all chats. Returns the function that
+// stops the calls.
+export function onChatEvent(handler: (chat: string, event: ChatEvent) => void): Promise<UnlistenFn> {
+  return listen<ChatEvent & { chat: string }>("chat", ({ payload }) => {
+    const { chat, ...event } = payload;
+    handler(chat, event as ChatEvent);
+  });
+}
 
 // The URL of a file in an open galley directory, served by the `galley` URI
 // scheme. A nonzero `version` adds a query, so that the webview loads the file

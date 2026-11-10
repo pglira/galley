@@ -20,6 +20,9 @@ import type { PdfOptions } from "@/lib/pdfOptions";
 import { SearchBox, SearchResults } from "@/components/SearchPanel";
 import { TableOfContents } from "@/components/TableOfContents";
 import { TabBar } from "@/components/TabBar";
+import { ChatPanel } from "@/components/ChatPanel";
+import { useChats } from "@/lib/useChats";
+import { NEW_TASK, newNames } from "@/lib/chat";
 import { tauri, assetUrl, type Galley, type Document, type SearchHit, type Snapshot } from "@/lib/tauri";
 import { parseAnnotations, serializeAnnotations, type Annotation } from "@/lib/annotations";
 import { buildPrompt, copyText } from "@/lib/prompt";
@@ -63,10 +66,12 @@ interface GalleyViewProps {
   // Only the galley of the shown tab polls its directory and handles keys.
   shown: boolean;
   onOpenDir: () => void;
+  // Reports if a chat of the galley runs a turn.
+  onBusy: (busy: boolean) => void;
 }
 
 // The tree, the document and the annotations of one galley directory.
-function GalleyView({ initial, name, shown, onOpenDir }: GalleyViewProps) {
+function GalleyView({ initial, name, shown, onOpenDir, onBusy }: GalleyViewProps) {
   const root = initial.path;
   const [galley, setGalley] = useState<Galley>(initial);
   const [error, setError] = useState<string | null>(null);
@@ -102,9 +107,30 @@ function GalleyView({ initial, name, shown, onOpenDir }: GalleyViewProps) {
   const copyPromptRef = useRef<(() => void) | null>(null);
   const annotateRef = useRef<(() => void) | null>(null);
   const addGeneralRef = useRef<(() => void) | null>(null);
+  const sendPromptRef = useRef<(() => void) | null>(null);
+  const toggleChatRef = useRef<(() => void) | null>(null);
   const galleyJson = useRef(JSON.stringify(initial));
-  const { sidebarLeftWidth, sidebarRightWidth, setSidebarWidth, resetSidebarWidth, pdf, setPdf } =
-    usePreferences();
+  const {
+    sidebarLeftWidth,
+    sidebarRightWidth,
+    setSidebarWidth,
+    resetSidebarWidth,
+    pdf,
+    setPdf,
+    chatModel,
+    setChatModel,
+    chatHeight,
+    setChatHeight,
+    resetChatHeight,
+  } = usePreferences();
+  const [chatOpen, setChatOpenState] = useState(false);
+  // The output of the agent is part of the right sidebar, which shows with it.
+  const setChatOpen = useCallback((open: boolean) => {
+    setChatOpenState(open);
+    if (open) setSidebars((s) => (s.right ? s : { ...s, right: true }));
+  }, []);
+  // The chat panel shows the chat of the selected document, or of a new task.
+  const [chatTarget, setChatTarget] = useState<"doc" | "new">("doc");
 
   const doc: Document | null = galley?.documents.find((r) => r.name === selection?.document) ?? null;
   const snapshot = doc?.snapshots.find((s) => s.name === selection?.snapshot) ?? null;
@@ -123,6 +149,59 @@ function GalleyView({ initial, name, shown, onOpenDir }: GalleyViewProps) {
     galleyJson.current = json;
     setGalley(g);
   }, []);
+
+  // The end of a turn scans the directory at once, also in a hidden tab, so
+  // that new documents and snapshots show.
+  const chats = useChats(root, () => {
+    tauri.scanDir(root).then(applyGalley).catch(() => {});
+  });
+  const chatKey = chatTarget === "new" || !doc ? NEW_TASK : doc.name;
+  const busyDocs = useMemo(
+    () => new Set(Object.entries(chats.chats).filter(([, c]) => c.busy).map(([k]) => k)),
+    [chats.chats]
+  );
+  const anyBusy = busyDocs.size > 0;
+  useEffect(() => onBusy(anyBusy), [anyBusy, onBusy]);
+  useEffect(() => () => onBusy(false), [onBusy]);
+
+  useEffect(() => {
+    if (chatOpen) chats.load(chatKey);
+  }, [chatOpen, chatKey, chats.chats[chatKey]?.session]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // The documents when the chat of the new task sends its first message. A
+  // new document after that gets the chat and shows.
+  const newTaskKnown = useRef<string[] | null>(null);
+  useEffect(() => {
+    const known = newTaskKnown.current;
+    if (!known || !chats.chats[NEW_TASK]) return;
+    const fresh = newNames(known, galley.documents.map((d) => d.name)).find((n) => !chats.chats[n]);
+    const d = galley.documents.find((x) => x.name === fresh);
+    if (!d || d.snapshots.length === 0) return;
+    newTaskKnown.current = null;
+    chats.bind(d.name);
+    setSelection({ document: d.name, snapshot: d.snapshots[d.snapshots.length - 1].name });
+    setChatTarget("doc");
+  }, [galley, chats.chats]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // A new snapshot of the shown document shows at once if the chat of the
+  // document sent a message.
+  const snapshotCounts = useRef<Record<string, number>>({});
+  useEffect(() => {
+    const counts = snapshotCounts.current;
+    for (const d of galley.documents) {
+      const before = counts[d.name];
+      counts[d.name] = d.snapshots.length;
+      if (before === undefined || d.snapshots.length <= before) continue;
+      if (d.name === selection?.document && chats.chats[d.name]?.follow) {
+        setSelection({ document: d.name, snapshot: d.snapshots[d.snapshots.length - 1].name });
+      }
+    }
+  }, [galley]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const sendChat = (key: string, text: string) => {
+    if (key === NEW_TASK && !chats.chats[NEW_TASK]) newTaskKnown.current = galley.documents.map((d) => d.name);
+    chats.send(key, text, chatModel);
+  };
 
   // Poll the directory while the tab shows, and scan it at once when the tab
   // shows again. Polling works on all file systems, also on network mounts
@@ -468,6 +547,12 @@ function GalleyView({ initial, name, shown, onOpenDir }: GalleyViewProps) {
       } else if (meta && k === "m") {
         e.preventDefault();
         annotateRef.current?.();
+      } else if (meta && e.shiftKey && e.key === "Enter") {
+        e.preventDefault();
+        sendPromptRef.current?.();
+      } else if (meta && k === "j") {
+        e.preventDefault();
+        toggleChatRef.current?.();
       } else if (meta && e.shiftKey && k === "c") {
         e.preventDefault();
         copyPromptRef.current?.();
@@ -510,6 +595,18 @@ function GalleyView({ initial, name, shown, onOpenDir }: GalleyViewProps) {
     setCopied(true);
   }, [doc, snapshot, annotations.length]);
   copyPromptRef.current = copyPrompt;
+
+  // Sends the prompt for the annotations to the chat of the document.
+  const sendPrompt = () => {
+    if (!doc || !snapshot || annotations.length === 0 || chats.chats[doc.name]?.busy) return;
+    setChatOpen(true);
+    setChatTarget("doc");
+    sendChat(doc.name, buildPrompt(doc.name, snapshot.name, doc.snapshots.map((s) => s.name)));
+  };
+  sendPromptRef.current = chats.available ? sendPrompt : null;
+  // Shows the output of the agent, or hides it if it shows.
+  const toggleChat = () => setChatOpen(!(chatOpen && sidebars.right));
+  toggleChatRef.current = toggleChat;
 
   useEffect(() => {
     if (!copied) return;
@@ -555,7 +652,11 @@ function GalleyView({ initial, name, shown, onOpenDir }: GalleyViewProps) {
           galley={galley}
           name={name}
           selection={selection}
-          onSelect={setSelection}
+          onSelect={(s) => {
+            setSelection(s);
+            setChatTarget("doc");
+          }}
+          busy={busyDocs}
           onOpenDir={onOpenDir}
           onInitRules={onInitRules}
           onEditRules={() => setRulesOpen(true)}
@@ -587,6 +688,13 @@ function GalleyView({ initial, name, shown, onOpenDir }: GalleyViewProps) {
           canCopyPrompt={annotations.length > 0}
           copied={copied}
           onCopyPrompt={copyPrompt}
+          sendPrompt={
+            chats.available
+              ? { enabled: annotations.length > 0 && !(doc && chats.chats[doc.name]?.busy), run: sendPrompt }
+              : null
+          }
+          chatOpen={chatOpen && sidebars.right}
+          onChatOpen={toggleChat}
           onFind={() => setSearchOpen(true)}
           onReload={snapshot ? reload : null}
           onExportPdf={exportPdf}
@@ -670,21 +778,47 @@ function GalleyView({ initial, name, shown, onOpenDir }: GalleyViewProps) {
               onReset={() => resetSidebarWidth("right")}
             />
           )}
+          {/* The right sidebar: the annotations, and below them the output of
+              the agent when it is on. */}
           <aside
-            className={cn("shrink-0 border-l bg-card/30", !sidebars.right && "hidden")}
+            className={cn("flex min-h-0 shrink-0 flex-col border-l bg-card/30", !sidebars.right && "hidden")}
             style={{ width: sidebarRightWidth }}
           >
-            <AnnotationsPanel
-              enabled={snapshot != null}
-              annotations={annotations}
-              active={active}
-              onActivate={activate}
-              draft={draft}
-              onDraft={setDraft}
-              onSave={onSaveDraft}
-              onDelete={onDelete}
-              imageUrl={imageUrl}
-            />
+            <div className="min-h-0 flex-1">
+              <AnnotationsPanel
+                enabled={snapshot != null}
+                annotations={annotations}
+                active={active}
+                onActivate={activate}
+                draft={draft}
+                onDraft={setDraft}
+                onSave={onSaveDraft}
+                onDelete={onDelete}
+                imageUrl={imageUrl}
+              />
+            </div>
+            {chatOpen && <ResizeHandle side="top" onResize={setChatHeight} onReset={resetChatHeight} />}
+            {/* The annotations keep at least 6rem of the height. */}
+            <div
+              className={cn("flex min-h-0 shrink-0 flex-col border-t", !chatOpen && "hidden")}
+              style={{ height: chatHeight, maxHeight: "calc(100% - 6rem)" }}
+            >
+              <ChatPanel
+                title={chatKey === NEW_TASK ? "New task" : documentLabel(chatKey).title}
+                newTask={chatKey === NEW_TASK}
+                chat={chats.chats[chatKey]}
+                available={chats.available}
+                model={chatModel}
+                onModel={setChatModel}
+                onSend={(text) => sendChat(chatKey, text)}
+                onStop={() => chats.stop(chatKey)}
+                onNewSession={() => {
+                  if (chatKey === NEW_TASK) newTaskKnown.current = null;
+                  chats.reset(chatKey);
+                }}
+                onNewTask={() => setChatTarget("new")}
+              />
+            </div>
           </aside>
         </div>
       </div>
@@ -760,6 +894,26 @@ function AppShell() {
   // The names that the user gives to tabs, by galley path.
   const [names, setNames] = useState<Record<string, string>>({});
   const [error, setError] = useState<string | null>(null);
+  // The ids of the tabs with a chat that runs a turn.
+  const [busyTabs, setBusyTabs] = useState<Set<number>>(new Set());
+  const setTabBusy = useCallback((id: number, busy: boolean) => {
+    setBusyTabs((prev) => {
+      if (prev.has(id) === busy) return prev;
+      const next = new Set(prev);
+      if (busy) next.add(id);
+      else next.delete(id);
+      return next;
+    });
+  }, []);
+  const busyCallbacks = useRef(new Map<number, (busy: boolean) => void>());
+  const onBusyOf = (id: number) => {
+    let f = busyCallbacks.current.get(id);
+    if (!f) {
+      f = (busy: boolean) => setTabBusy(id, busy);
+      busyCallbacks.current.set(id, f);
+    }
+    return f;
+  };
   const { zoomIn, zoomOut, zoomReset } = usePreferences();
 
   // Opens a galley directory in the shown tab if that tab has the start
@@ -915,7 +1069,12 @@ function AppShell() {
     <div className="flex h-full flex-col">
       {showBar && (
         <TabBar
-          tabs={tabs.list.map((t) => ({ id: t.id, label: label(t), path: t.galley?.path ?? null }))}
+          tabs={tabs.list.map((t) => ({
+            id: t.id,
+            label: label(t),
+            path: t.galley?.path ?? null,
+            busy: busyTabs.has(t.id),
+          }))}
           active={tabs.active}
           onActivate={(id) => setTabs(({ list }) => ({ list, active: id }))}
           onClose={closeTab}
@@ -937,7 +1096,13 @@ function AppShell() {
         {tabs.list.map((t) => (
           <div key={t.id} className={cn("absolute inset-0", t.id !== tabs.active && "invisible")}>
             {t.galley ? (
-              <GalleyView initial={t.galley} name={label(t)} shown={t.id === tabs.active} onOpenDir={pickDir} />
+              <GalleyView
+                initial={t.galley}
+                name={label(t)}
+                shown={t.id === tabs.active}
+                onOpenDir={pickDir}
+                onBusy={onBusyOf(t.id)}
+              />
             ) : (
               <StartScreen
                 recent={recent}

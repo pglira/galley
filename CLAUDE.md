@@ -4,7 +4,7 @@
 
 Galley is a Tauri desktop app to review Markdown and PDF documents from AI agents. It opens a **galley directory**, shows its documents and snapshots, lets the user annotate text, diffs snapshots, and copies a prompt for the agent. See `README.md` for the workflow and `PLAN.md` for the scope.
 
-Galley is a fork of Marky. Keep the scope small: no editor for documents (only for `GALLEY.md`), no agent integration. Files are the only channel to the agent.
+Galley is a fork of Marky. Keep the scope small: no editor for documents (only for `GALLEY.md`). Files are the main channel to the agent: **Copy prompt** works for agents in containers and on remote hosts. **Send prompt** to a local Claude Code (`claude` command) is the only agent integration. The annotations are the channel: there is no chat; the panel shows the output of the agent read only, and only a new task has a text field.
 
 ## Galley directory
 
@@ -22,7 +22,7 @@ Galley is a fork of Marky. Keep the scope small: no editor for documents (only f
 
 ## Stack (do not swap without asking)
 
-Tauri v2 (Rust), Vite + React + TypeScript, pnpm, markdown-it, Shiki, mermaid, KaTeX (`@vscode/markdown-it-katex`), markdown-it plugins (anchor, footnote, task lists, front matter, deflist, mark), shadcn/ui, Tailwind CSS, DOMPurify, `diff` (jsdiff), `pdfjs-dist` (PDF.js), CodeMirror 6 (`@uiw/react-codemirror`, only in the editor for `GALLEY.md`).
+Tauri v2 (Rust), `claude-codes` (Claude Code stream-json protocol), Vite + React + TypeScript, pnpm, markdown-it, Shiki, mermaid, KaTeX (`@vscode/markdown-it-katex`), markdown-it plugins (anchor, footnote, task lists, front matter, deflist, mark), shadcn/ui, Tailwind CSS, DOMPurify, `diff` (jsdiff), `pdfjs-dist` (PDF.js), CodeMirror 6 (`@uiw/react-codemirror`, only in the editor for `GALLEY.md`).
 
 ## Layout
 
@@ -30,6 +30,7 @@ Tauri v2 (Rust), Vite + React + TypeScript, pnpm, markdown-it, Shiki, mermaid, K
 - `src-tauri/src/commands.rs` — Tauri commands; the open roots live in `OpenDirs` managed state. Commands on a galley take its root, which must be open.
 - `src-tauri/src/protocol.rs` — the `galley` URI scheme for the images of the open galleys.
 - `src-tauri/src/capture.rs` — screenshots of a rectangle of the webview through WebKitGTK (Linux) for region annotations (`src/lib/region.ts`).
+- `src-tauri/src/chat.rs` — chat with Claude Code: one `claude` process (stream-json, `claude-codes` crate) per chat in the galley root, with `--dangerously-skip-permissions`. The chat id is the session id; `--resume` continues a session after a restart. Events go to the frontend as the `chat` Tauri event. The history comes from the transcript of `claude`. The sessions of the documents are in the settings (`chat_sessions`).
 - `src-tauri/src/pdf.rs` — PDF export through WebKitGTK (Linux); other platforms use the print dialog.
 - `src/App.tsx` — `AppShell` holds the tabs (`src/components/TabBar.tsx`), one per open galley. `GalleyView` holds the state of one galley: selection, diff, annotations. The shown galley polls `scan_dir` every 2 s (works on sshfs and container volumes, where file events do not).
 - `src/components/Viewer.tsx` — rendering pipeline: markdown → optional diff → Shiki/mermaid → annotation marks.
@@ -42,6 +43,7 @@ Tauri v2 (Rust), Vite + React + TypeScript, pnpm, markdown-it, Shiki, mermaid, K
 - `src/lib/print.ts` — PDF export: renders the document into `#print-root`, which only print media shows.
 - `src/components/PdfExportDialog.tsx` — the options of the PDF export (`src/lib/pdfOptions.ts`), stored in the preferences as `pdf`.
 - `src/components/RulesEditor.tsx` — the dialog to edit `GALLEY.md`, with the Markdown editor `src/components/MarkdownEditor.tsx` (CodeMirror, syntax colors).
+- `src/components/ChatPanel.tsx` — the output of the agent, read only, below the annotations in the right sidebar, and the text field of a new task. `src/lib/useChats.ts` holds the chats of a galley (one per document, `NEW_TASK` for a new task), `src/lib/chat.ts` the state logic.
 - `src/components/SearchPanel.tsx` — search in all documents (`search` command in `galley.rs`).
 - `src/components/TableOfContents.tsx` — the headings of the shown document below the document tree (`src/lib/toc.ts`).
 

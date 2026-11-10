@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { ChevronDown, ChevronRight, Ellipsis, FolderOpen, MessageSquare, ScrollText, Trash2 } from "lucide-react";
+import { ChevronDown, ChevronRight, Ellipsis, FolderOpen, Loader2, MessageSquare, ScrollText, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ResizeHandle } from "@/components/ResizeHandle";
 import {
@@ -31,6 +31,8 @@ interface Props {
   name: string;
   selection: Selection | null;
   onSelect: (s: Selection) => void;
+  // The names of the documents whose chat runs a turn.
+  busy?: Set<string>;
   onOpenDir: () => void;
   onInitRules: () => void;
   onEditRules: () => void;
@@ -62,6 +64,7 @@ export function DocumentTree({
   name,
   selection,
   onSelect,
+  busy,
   onOpenDir,
   onInitRules,
   onEditRules,
@@ -160,6 +163,9 @@ export function DocumentTree({
                   <div className="truncate text-sm">{label.title}</div>
                   {label.date && <div className="text-[11px] text-muted-foreground">{label.date}</div>}
                 </div>
+                {busy?.has(doc.name) && (
+                  <Loader2 className="size-3.5 shrink-0 animate-spin text-primary" aria-label="The agent works" />
+                )}
                 <Button
                   variant="ghost"
                   size="icon-xs"

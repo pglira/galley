@@ -17,6 +17,10 @@ export interface Preferences {
   docFont: string;
   // The options of the PDF export.
   pdf: PdfOptions;
+  // The model of the chat with `claude`; empty for the default model.
+  chatModel: string;
+  // Height of the agent output below the annotations, in CSS pixels.
+  chatHeight: number;
 }
 
 const STORAGE_KEY = "galley:preferences";
@@ -30,6 +34,8 @@ const DEFAULTS: Preferences = {
   contentsHeight: 300,
   docFont: DOC_FONT_DEFAULT,
   pdf: PDF_DEFAULTS,
+  chatModel: "",
+  chatHeight: 360,
 };
 
 export const ZOOM_MIN = 0.5;
@@ -41,11 +47,15 @@ export const PAPER_WIDTH_MAX = 2400;
 export const PAPER_WIDTH_DEFAULT = 860;
 
 export const SIDEBAR_LEFT_MIN = 180;
-export const SIDEBAR_LEFT_MAX = 400;
 export const SIDEBAR_LEFT_DEFAULT = 256;
 export const SIDEBAR_RIGHT_MIN = 220;
-export const SIDEBAR_RIGHT_MAX = 520;
+// A sidebar can take all of the window except this width, which stays for the
+// document.
+export const DOCUMENT_MIN_WIDTH = 320;
 export const SIDEBAR_RIGHT_DEFAULT = 300;
+export const CHAT_HEIGHT_MIN = 120;
+export const CHAT_HEIGHT_MAX = 2000;
+export const CHAT_HEIGHT_DEFAULT = 360;
 export const CONTENTS_HEIGHT_MIN = 60;
 export const CONTENTS_HEIGHT_DEFAULT = 300;
 
@@ -53,6 +63,9 @@ interface Ctx extends Preferences {
   setCopyAsMarkdown: (v: boolean) => void;
   setDocFont: (id: string) => void;
   setPdf: (options: PdfOptions) => void;
+  setChatModel: (model: string) => void;
+  setChatHeight: (height: number) => void;
+  resetChatHeight: () => void;
   zoomIn: () => void;
   zoomOut: () => void;
   zoomReset: () => void;
@@ -94,6 +107,8 @@ function persistToBackend(prefs: Preferences) {
       copy_as_markdown: prefs.copyAsMarkdown,
       doc_font: prefs.docFont,
       pdf: prefs.pdf,
+      chat_model: prefs.chatModel,
+      chat_height: prefs.chatHeight,
     }).catch(() => {});
   }, 300);
 }
@@ -118,6 +133,8 @@ export function PreferencesProvider({ children }: { children: React.ReactNode })
         if (backend.copy_as_markdown != null) next.copyAsMarkdown = backend.copy_as_markdown;
         if (backend.doc_font != null) next.docFont = backend.doc_font;
         if (backend.pdf != null) next.pdf = normalizePdfOptions(backend.pdf);
+        if (backend.chat_model != null) next.chatModel = backend.chat_model;
+        if (backend.chat_height != null) next.chatHeight = backend.chat_height;
         persist(next);
         return next;
       });
@@ -145,6 +162,22 @@ export function PreferencesProvider({ children }: { children: React.ReactNode })
 
   const setPdf = React.useCallback(
     (options: PdfOptions) => update((p) => ({ ...p, pdf: normalizePdfOptions(options) })),
+    [update],
+  );
+
+  const setChatModel = React.useCallback(
+    (model: string) => update((p) => ({ ...p, chatModel: model })),
+    [update],
+  );
+
+  const setChatHeight = React.useCallback(
+    (height: number) =>
+      update((p) => ({ ...p, chatHeight: Math.round(Math.min(CHAT_HEIGHT_MAX, Math.max(CHAT_HEIGHT_MIN, height))) })),
+    [update],
+  );
+
+  const resetChatHeight = React.useCallback(
+    () => update((p) => ({ ...p, chatHeight: CHAT_HEIGHT_DEFAULT })),
     [update],
   );
 
@@ -184,7 +217,7 @@ export function PreferencesProvider({ children }: { children: React.ReactNode })
   const setSidebarWidth = React.useCallback(
     (side: "left" | "right", width: number) => {
       const min = side === "left" ? SIDEBAR_LEFT_MIN : SIDEBAR_RIGHT_MIN;
-      const max = side === "left" ? SIDEBAR_LEFT_MAX : SIDEBAR_RIGHT_MAX;
+      const max = Math.max(min, window.innerWidth - DOCUMENT_MIN_WIDTH);
       const clamped = Math.round(Math.min(max, Math.max(min, width)));
       const key = side === "left" ? "sidebarLeftWidth" : "sidebarRightWidth";
       update((p) => ({ ...p, [key]: clamped }));
@@ -218,6 +251,9 @@ export function PreferencesProvider({ children }: { children: React.ReactNode })
       setCopyAsMarkdown,
       setDocFont,
       setPdf,
+      setChatModel,
+      setChatHeight,
+      resetChatHeight,
       zoomIn,
       zoomOut,
       zoomReset,
@@ -232,6 +268,9 @@ export function PreferencesProvider({ children }: { children: React.ReactNode })
       setCopyAsMarkdown,
       setDocFont,
       setPdf,
+      setChatModel,
+      setChatHeight,
+      resetChatHeight,
       zoomIn,
       zoomOut,
       zoomReset,

@@ -8,7 +8,7 @@ A desktop app to review Markdown documents from AI agents. Fork of [Marky](https
 2. The agent reads `GALLEY.md` in that directory and starts a new document.
 3. You open the galley directory in Galley on the host.
 4. You select a document and a snapshot, and annotate the text.
-5. You click **Copy prompt** and paste the prompt into the agent's terminal.
+5. You click **Copy prompt** and paste the prompt into the agent's terminal, or **Send prompt** to send it to the chat with a local Claude Code.
 6. The agent writes the next snapshot. You enable the diff to see only the changes.
 
 ## Galley directory

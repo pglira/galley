@@ -23,6 +23,8 @@ import {
   RotateCw,
   PanelLeft,
   PanelRight,
+  MessagesSquare,
+  Send,
 } from "lucide-react";
 import { useTheme, PAPER_PRESETS } from "@/lib/theme";
 import { DOC_FONTS } from "@/lib/fonts";
@@ -52,6 +54,12 @@ interface Props {
   // True for a short time after the prompt was copied.
   copied: boolean;
   onCopyPrompt: () => void;
+  // Sends the prompt to the chat of the document; null if Galley does not
+  // find `claude`.
+  sendPrompt: { enabled: boolean; run: () => void } | null;
+  // The visibility of the chat panel.
+  chatOpen: boolean;
+  onChatOpen: (open: boolean) => void;
   onFind: () => void;
   // Null if no snapshot is selected.
   onReload: (() => void) | null;
@@ -73,6 +81,9 @@ export function Toolbar({
   canCopyPrompt,
   copied,
   onCopyPrompt,
+  sendPrompt,
+  chatOpen,
+  onChatOpen,
   onFind,
   onReload,
   onExportPdf,
@@ -181,6 +192,25 @@ export function Toolbar({
           {copied ? <Check /> : <ClipboardCopy />}
           {copied ? "Copied" : "Copy prompt"}
         </Button>
+        {sendPrompt && (
+          <Button
+            variant="outline"
+            size="xs"
+            className="ml-1 text-[13px]"
+            disabled={!sendPrompt.enabled}
+            title={
+              sendPrompt.enabled
+                ? "Send the prompt to Claude Code (Ctrl Shift Enter)"
+                : canCopyPrompt
+                ? "The agent works on this document"
+                : "Add annotations to this snapshot first"
+            }
+            onClick={sendPrompt.run}
+          >
+            <Send />
+            Send prompt
+          </Button>
+        )}
         <div className="mx-2 h-4 w-px bg-border" />
         <Tooltip>
           <TooltipTrigger asChild>
@@ -335,6 +365,21 @@ export function Toolbar({
             </div>
           </DropdownMenuContent>
         </DropdownMenu>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button
+              onClick={() => onChatOpen(!chatOpen)}
+              variant="ghost"
+              size="icon-xs"
+              className={cn(!chatOpen && "text-muted-foreground")}
+              aria-label={chatOpen ? "Hide agent output" : "Show agent output"}
+              aria-pressed={chatOpen}
+            >
+              <MessagesSquare />
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent>{chatOpen ? "Hide" : "Show"} agent output (Ctrl J)</TooltipContent>
+        </Tooltip>
         <Tooltip>
           <TooltipTrigger asChild>
             <Button

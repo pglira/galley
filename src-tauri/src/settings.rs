@@ -30,6 +30,20 @@ pub struct Settings {
     /// Names that the user gives to the tabs of galley directories, by path.
     #[serde(default)]
     pub tab_names: BTreeMap<String, String>,
+    /// The session ids of the chats with `claude`, by galley path and
+    /// document name.
+    #[serde(default)]
+    pub chat_sessions: BTreeMap<String, BTreeMap<String, String>>,
+    /// The model of the chats, or none for the default model of `claude`.
+    #[serde(default)]
+    pub chat_model: Option<String>,
+    /// The height of the agent output below the annotations.
+    #[serde(default)]
+    pub chat_height: Option<u32>,
+    /// The path of the `claude` binary. Without it, Galley finds `claude` on
+    /// the PATH.
+    #[serde(default)]
+    pub claude_path: Option<String>,
 }
 
 const FILE_NAME: &str = "settings.json";
@@ -75,6 +89,23 @@ impl Settings {
             self.tab_names.remove(dir);
         } else {
             self.tab_names.insert(dir.to_string(), name.to_string());
+        }
+    }
+
+    /// Sets the session of the chat of `document` in the galley `dir`. `None`
+    /// removes it.
+    pub fn set_chat_session(&mut self, dir: &str, document: &str, session: Option<&str>) {
+        let sessions = self.chat_sessions.entry(dir.to_string()).or_default();
+        match session {
+            Some(s) => {
+                sessions.insert(document.to_string(), s.to_string());
+            }
+            None => {
+                sessions.remove(document);
+            }
+        }
+        if sessions.is_empty() {
+            self.chat_sessions.remove(dir);
         }
     }
 
@@ -134,6 +165,15 @@ mod tests {
         assert_eq!(s.tab_names.get("/g/a").map(String::as_str), Some("Alpha"));
         s.set_tab_name("/g/a", " ");
         assert!(s.tab_names.is_empty());
+    }
+
+    #[test]
+    fn set_chat_session_adds_and_removes() {
+        let mut s = Settings::default();
+        s.set_chat_session("/g/a", "doc", Some("id"));
+        assert_eq!(s.chat_sessions["/g/a"]["doc"], "id");
+        s.set_chat_session("/g/a", "doc", None);
+        assert!(s.chat_sessions.is_empty());
     }
 
     #[test]

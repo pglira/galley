@@ -229,6 +229,8 @@ pub struct PreferencesPayload {
     pub copy_as_markdown: Option<bool>,
     pub doc_font: Option<String>,
     pub pdf: Option<serde_json::Value>,
+    pub chat_model: Option<String>,
+    pub chat_height: Option<u32>,
 }
 
 #[tauri::command]
@@ -242,6 +244,8 @@ pub fn save_preferences(prefs: PreferencesPayload) -> AppResult<()> {
         s.copy_as_markdown = prefs.copy_as_markdown;
         s.doc_font = prefs.doc_font;
         s.pdf = prefs.pdf;
+        s.chat_model = prefs.chat_model;
+        s.chat_height = prefs.chat_height;
     })
 }
 
@@ -257,5 +261,76 @@ pub fn load_preferences() -> PreferencesPayload {
         copy_as_markdown: s.copy_as_markdown,
         doc_font: s.doc_font,
         pdf: s.pdf,
+        chat_model: s.chat_model,
+        chat_height: s.chat_height,
     }
+}
+
+/// Returns the path of the `claude` binary, or none if Galley does not find
+/// it. The chat needs it.
+#[tauri::command]
+pub fn chat_claude_path() -> Option<String> {
+    let configured = Settings::load(&data_dir()).unwrap_or_default().claude_path;
+    crate::chat::find_claude(configured.as_deref()).map(|p| p.display().to_string())
+}
+
+/// Returns the session ids of the chats of the galley `root`, by document.
+#[tauri::command]
+pub fn chat_sessions(root: String, open: State<'_, OpenDirs>) -> AppResult<BTreeMap<String, String>> {
+    let root = open.get(&root)?;
+    let s = Settings::load(&data_dir()).unwrap_or_default();
+    Ok(s.chat_sessions.get(&root.display().to_string()).cloned().unwrap_or_default())
+}
+
+/// Sets the session of the chat of `document`. `None` removes it.
+#[tauri::command]
+pub fn set_chat_session(
+    root: String,
+    document: String,
+    session: Option<String>,
+    open: State<'_, OpenDirs>,
+) -> AppResult<()> {
+    let root = open.get(&root)?;
+    Settings::update(&data_dir(), |s| {
+        s.set_chat_session(&root.display().to_string(), &document, session.as_deref())
+    })
+}
+
+/// Returns the conversation of the session `chat` so far.
+#[tauri::command]
+pub fn chat_history(root: String, chat: String, open: State<'_, OpenDirs>) -> AppResult<Vec<crate::chat::ChatEvent>> {
+    crate::chat::history(&open.get(&root)?, &chat)
+}
+
+/// Sends a message to the chat `chat` (a session id). `document` is the
+/// document directory of the chat, or none for a chat of a new task. The
+/// events of the chat arrive as `chat` events. The command is async, so that
+/// the process starts inside the Tokio runtime.
+#[tauri::command]
+#[allow(clippy::too_many_arguments)]
+pub async fn chat_send(
+    root: String,
+    chat: String,
+    document: Option<String>,
+    model: Option<String>,
+    text: String,
+    app: tauri::AppHandle,
+    open: State<'_, OpenDirs>,
+    chats: State<'_, crate::chat::Chats>,
+) -> AppResult<()> {
+    let root = open.get(&root)?;
+    let claude = chat_claude_path().ok_or_else(|| AppError::Invalid("Galley does not find claude".into()))?;
+    chats.send(app, PathBuf::from(claude), root, chat, document, model, text)
+}
+
+/// Stops the current turn of the chat.
+#[tauri::command]
+pub fn chat_interrupt(chat: String, chats: State<'_, crate::chat::Chats>) {
+    chats.interrupt(&chat);
+}
+
+/// Stops the process of the chat.
+#[tauri::command]
+pub fn chat_close(chat: String, chats: State<'_, crate::chat::Chats>) {
+    chats.close(&chat);
 }
