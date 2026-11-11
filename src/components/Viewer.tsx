@@ -14,6 +14,7 @@ import { buildIndex, countQuote, findQuote, quoteContext, unwrapAll, wrapRange, 
 import type { Annotation } from "@/lib/annotations";
 import { headingTarget, KEY_TARGETS, navAction, scrollDistance, SPACE_TARGETS } from "@/lib/navigation";
 import { textInRect, trackRegion } from "@/lib/region";
+import { DiffGutter } from "@/components/DiffGutter";
 
 // The text of the document in a snapshot.
 export interface Content {
@@ -544,15 +545,18 @@ export function Viewer({
   const dangerousHtml = React.useMemo(() => ({ __html: html }), [html]);
 
   return (
-    <div ref={scrollerRef} className="h-full w-full overflow-auto px-6">
-      <div
-        className={`paper paper-${resolved}`}
-        style={
-          { "--paper": paper, "--doc-zoom": zoom, "--paper-width": `${paperWidth}px` } as React.CSSProperties
-        }
-      >
-        <article ref={ref} className="markdown-body" dangerouslySetInnerHTML={dangerousHtml} />
+    <div className="flex h-full w-full">
+      <div ref={scrollerRef} className="h-full min-w-0 flex-1 overflow-auto px-6">
+        <div
+          className={`paper paper-${resolved}`}
+          style={
+            { "--paper": paper, "--doc-zoom": zoom, "--paper-width": `${paperWidth}px` } as React.CSSProperties
+          }
+        >
+          <article ref={ref} className="markdown-body" dangerouslySetInnerHTML={dangerousHtml} />
+        </div>
       </div>
+      {compare && <DiffGutter scrollerRef={scrollerRef} rootRef={ref} nonce={renderNonce} />}
     </div>
   );
 }

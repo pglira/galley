@@ -590,6 +590,29 @@
   border: 1px solid var(--diff-del-line);
 }
 
+/* The overview gutter of the diff, beside the scroller. */
+.diff-gutter {
+  position: relative;
+  flex: none;
+  width: 16px;
+  cursor: pointer;
+  @apply border-l bg-muted;
+}
+.diff-gutter-mark {
+  position: absolute;
+  min-height: 4px;
+}
+.diff-gutter-add {
+  left: 2px;
+  right: 8px;
+  background: oklch(0.65 0.15 150);
+}
+.diff-gutter-del {
+  left: 8px;
+  right: 2px;
+  background: oklch(0.62 0.18 25);
+}
+
 /* Text of the assistant in the chat panel, in the colors of the app. */
 .chat-markdown { font-size: 13px; line-height: 1.55; overflow-wrap: anywhere; }
 .chat-markdown > *:first-child { margin-top: 0; }

@@ -5,6 +5,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ## [Unreleased]
 
 ### Added
+- Diff gutter: a strip beside the scrollbar shows where the diff has changes (green for inserted, red for removed text). A click on the strip scrolls there.
 - `Ctrl D` turns the diff on or off.
 - **Send prompt** (`Ctrl Shift Enter`): sends the prompt for the annotations to a local Claude Code, one session per document, through the `claude-codes` crate. The right sidebar shows the output of the agent below the annotations, read only (`Ctrl J`). **New document** above the document list starts the agent with an initial prompt and a model; the session gets the new document of the agent. Each turn shows the size of the context in tokens.
 - Galley directories: a tree of documents and their snapshots, newest document first.

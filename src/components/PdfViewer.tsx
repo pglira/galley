@@ -5,6 +5,7 @@ import { trackSelection } from "@/lib/pdfSelection";
 import { diffStreams, itemStream, tokenize, type PdfDiff, type TextItem } from "@/lib/pdfDiff";
 import { clearDiff, drawDiff, drawRemoved, layerStream, OLD_PAGE } from "@/lib/pdfDiffLayer";
 import { buildIndex, countQuote, findQuote, quoteContext, unwrapAll, wrapRange } from "@/lib/textRange";
+import { DiffGutter } from "@/components/DiffGutter";
 import { headingTarget, KEY_TARGETS, navAction, scrollDistance, SPACE_TARGETS } from "@/lib/navigation";
 import { textInRect, trackRegion } from "@/lib/region";
 import type { Annotation } from "@/lib/annotations";
@@ -90,6 +91,8 @@ export function PdfViewer({
   const { zoom, paperWidth } = usePreferences();
   const [pdf, setPdf] = React.useState<LoadedPdf | null>(null);
   const [renderNonce, setRenderNonce] = React.useState(0);
+  // Counts the drawings of the diff.
+  const [diffNonce, setDiffNonce] = React.useState(0);
   // True when all pages of the shown layout have their text layers.
   const laidOut = React.useRef(false);
   // The inner width of the scroller, in CSS pixels.
@@ -337,6 +340,7 @@ export function PdfViewer({
     if (!cache.diff) return;
     drawDiff(root, dom, tokenize(dom.text), cache.diff);
     if (oldDom) drawRemoved(oldDom, tokenize(oldDom.text), cache.diff);
+    setDiffNonce((n) => n + 1);
     // `ref` is stable.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [renderNonce, oldStream]);
@@ -434,8 +438,11 @@ export function PdfViewer({
   }, [content.filePath]);
 
   return (
-    <div ref={scrollerRef} className="h-full w-full overflow-auto px-6">
-      <article ref={ref} className="pdf-body" />
+    <div className="flex h-full w-full">
+      <div ref={scrollerRef} className="h-full min-w-0 flex-1 overflow-auto px-6">
+        <article ref={ref} className="pdf-body" />
+      </div>
+      {compare && <DiffGutter scrollerRef={scrollerRef} rootRef={ref} nonce={diffNonce} />}
     </div>
   );
 }

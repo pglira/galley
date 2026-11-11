@@ -11,7 +11,7 @@ Galley is a fork of [Marky](https://github.com/GRVYDEV/marky) (Tauri v2, Rust, R
 3. Open the galley directory in Galley. The left side shows all documents and their snapshots.
 4. Select text in the document and click **Annotate**. Galley saves the annotations in `annotations.md` next to the document.
 5. Click **Copy prompt** (`Ctrl Shift C`) and paste the prompt into the terminal of the agent. The prompt uses only relative paths, so it works when the agent runs in a container or on a remote host. If Claude Code runs on the same computer, click **Send prompt** (`Ctrl Shift Enter`) instead: Galley sends the prompt to Claude Code and shows its output.
-6. The agent writes the next snapshot. Enable **Diff against** (`Ctrl D`) to see only the changes since a reference snapshot.
+6. The agent writes the next snapshot. Enable **Diff against** (`Ctrl D`) to see only the changes since a reference snapshot. A gutter beside the scrollbar marks where the changes are in the full document: green for inserted text, red for removed text. Click the gutter to go there.
 7. When the document is complete, delete the old snapshots: open the menu (`…`) of the snapshot to keep and click **Delete all other snapshots**. The menu can also delete one snapshot. The trash icon of a document deletes the full document directory.
 
 ## Galley directory

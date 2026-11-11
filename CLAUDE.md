@@ -36,6 +36,7 @@ Tauri v2 (Rust), `claude-codes` (Claude Code stream-json protocol), Vite + React
 - `src/components/Viewer.tsx` — rendering pipeline: markdown → optional diff → Shiki/mermaid → annotation marks.
 - `src/components/PdfViewer.tsx` — PDF documents: pages with a canvas and a PDF.js text layer (`src/lib/pdf.ts`), annotation marks in the text layer. The canvases render only near the view. PDF bytes load through the `read_binary` command. The text selection follows the nearest text (`src/lib/pdfSelection.ts`). The diff is a word diff of the text streams (`src/lib/pdfDiff.ts`), drawn in a layer on top of each page (`src/lib/pdfDiffLayer.ts`). The side-by-side view puts the pages of the reference (`.pdf-old-page`) next to the pages (`.pdf-page`) in a two-column grid.
 - `src/lib/diff.ts` — block diff of rendered HTML with word-level diff inside text blocks.
+- `src/components/DiffGutter.tsx` — the overview strip of the diff beside the scroller of both viewers; the marks come from `src/lib/diffGutter.ts`.
 - `src/lib/math.ts` — LaTeX math: each formula (`.katex`) holds its TeX source in a hidden `.katex-tex`. Text indexes skip `.katex-html`, so quotes and annotation marks use the TeX source.
 - `src/lib/textRange.ts` — character index over DOM text, wrap and insert helpers.
 - `src/lib/prompt.ts` — the prompt for the agent.
