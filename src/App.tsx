@@ -655,196 +655,195 @@ function GalleyView({ initial, name, shown, onOpenDir, onBusy }: GalleyViewProps
   };
 
   return (
-    <div className="flex h-full">
-      {/* A hidden sidebar stays mounted and keeps its state. */}
-      <div
-        className={cn("flex h-full min-h-0 shrink-0", !sidebars.left && "hidden")}
-        style={{ width: sidebarLeftWidth }}
-      >
-        <DocumentTree
-          galley={galley}
-          name={name}
-          selection={selection}
-          onSelect={(s) => {
-            setSelection(s);
-            setChatTarget("doc");
-          }}
-          busy={busyDocs}
-          onNewDocument={chats.available ? () => setNewDocOpen(true) : null}
-          newDocument={
-            chats.chats[NEW_TASK]
-              ? {
-                  busy: chats.chats[NEW_TASK].busy,
-                  selected: chatKey === NEW_TASK,
-                  onSelect: () => {
-                    setChatTarget("new");
-                    setChatOpen(true);
-                  },
-                }
-              : null
-          }
-          onOpenDir={onOpenDir}
-          onInitRules={onInitRules}
-          onEditRules={() => setRulesOpen(true)}
-          onDeleteDocument={onDeleteDocument}
-          onDeleteSnapshots={onDeleteSnapshots}
-          search={<SearchBox query={allQuery} onQueryChange={setAllQuery} inputRef={allInputRef} />}
-          results={
-            allQuery.trim() ? <SearchResults query={allQuery} galley={galley} onOpenHit={onOpenHit} /> : null
-          }
-          contents={content ? <TableOfContents articleRef={articleRef} contentNonce={contentNonce} /> : null}
-        />
-      </div>
-      {sidebars.left && (
-        <ResizeHandle
-          side="left"
-          onResize={(w) => setSidebarWidth("left", w)}
-          onReset={() => resetSidebarWidth("left")}
-        />
-      )}
-      <div className="flex min-w-0 flex-1 flex-col">
-        <Toolbar
-          title={title}
-          references={references}
-          diffOn={diffOn}
-          onDiffOn={setDiffOn}
-          reference={reference}
-          onReference={setReference}
-          sideBySide={content?.pdf && compare ? { on: sideBySide, onChange: setSideBySide } : null}
-          canCopyPrompt={annotations.length > 0}
-          copied={copied}
-          onCopyPrompt={copyPrompt}
-          sendPrompt={
-            chats.available
-              ? { enabled: annotations.length > 0 && !(doc && chats.chats[doc.name]?.busy), run: sendPrompt }
-              : null
-          }
-          chatOpen={chatOpen && sidebars.right}
-          onChatOpen={toggleChat}
-          onFind={() => setSearchOpen(true)}
-          onReload={snapshot ? reload : null}
-          onExportPdf={exportPdf}
-          sidebars={sidebars}
-          onSidebars={setSidebars}
-        />
-        {error && (
-          <div className="flex items-center justify-between border-b bg-destructive/10 px-3 py-1 text-xs text-destructive">
-            <span className="truncate">{error}</span>
-            <button className="ml-2 underline" onClick={() => setError(null)}>
-              Dismiss
-            </button>
-          </div>
-        )}
-        {notice && (
-          <div className="flex items-center justify-between border-b bg-muted/50 px-3 py-1 text-xs">
-            <span className="truncate">{notice}</span>
-            <button className="ml-2 underline" onClick={() => setNotice(null)}>
-              Dismiss
-            </button>
-          </div>
-        )}
-        <div className="flex min-h-0 flex-1">
-          <main className="relative flex min-w-0 flex-1">
-            {content?.pdf ? (
-              <PdfViewer
-                content={content}
-                compare={compare}
-                sideBySide={sideBySide && compare != null}
-                annotations={annotations}
-                activeAnnotation={active}
-                onSelection={onTextSelection}
-                onAnnotationClick={activate}
-                onRegion={onRegion}
-                keyNavigation={shown && !gallery && !rulesOpen}
-                articleRef={articleRef}
-                onRendered={() => setContentNonce((n) => n + 1)}
-                onError={setError}
-              />
-            ) : content ? (
-              <Viewer
-                content={content}
-                compare={compare}
-                imageHashes={imageHashes}
-                annotations={annotations}
-                activeAnnotation={active}
-                onSelection={onTextSelection}
-                onAnnotationClick={activate}
-                onImageClick={(images, index) => setGallery({ images, index })}
-                onCheck={onCheck}
-                onAnswer={onAnswer}
-                onRegion={onRegion}
-                keyNavigation={shown && !gallery && !rulesOpen}
-                articleRef={articleRef}
-                handleRef={viewerRef}
-                onRendered={() => setContentNonce((n) => n + 1)}
-              />
-            ) : (
-              <div className="flex flex-1 items-center justify-center text-sm text-muted-foreground">
-                No document selected.
-              </div>
-            )}
-            <DocSearch
-              open={searchOpen}
-              onClose={() => setSearchOpen(false)}
-              query={findQuery}
-              onQueryChange={(q) => {
-                setFindQuery(q);
-                setFindLine(null);
-              }}
-              targetLine={findLine}
-              containerRef={articleRef}
-              contentNonce={contentNonce}
-              skip={content?.pdf ? ".pdf-old-page" : ".katex-tex"}
-            />
-          </main>
-          {sidebars.right && (
-            <ResizeHandle
-              side="right"
-              onResize={(w) => setSidebarWidth("right", w)}
-              onReset={() => resetSidebarWidth("right")}
-            />
-          )}
-          {/* The right sidebar: the annotations, and below them the output of
-              the agent when it is on. */}
-          <aside
-            className={cn("flex min-h-0 shrink-0 flex-col border-l bg-card/30", !sidebars.right && "hidden")}
-            style={{ width: sidebarRightWidth }}
-          >
-            <div className="min-h-0 flex-1">
-              <AnnotationsPanel
-                enabled={snapshot != null}
-                annotations={annotations}
-                active={active}
-                onActivate={activate}
-                draft={draft}
-                onDraft={setDraft}
-                onSave={onSaveDraft}
-                onDelete={onDelete}
-                imageUrl={imageUrl}
-              />
-            </div>
-            {chatOpen && <ResizeHandle side="top" onResize={setChatHeight} onReset={resetChatHeight} />}
-            {/* The annotations keep at least 6rem of the height. */}
-            <div
-              className={cn("flex min-h-0 shrink-0 flex-col border-t", !chatOpen && "hidden")}
-              style={{ height: chatHeight, maxHeight: "calc(100% - 6rem)" }}
-            >
-              <ChatPanel
-                title={chatKey === NEW_TASK ? "New document" : documentLabel(chatKey).title}
-                newTask={chatKey === NEW_TASK}
-                chat={chats.chats[chatKey]}
-                available={chats.available}
-                model={chatModel}
-                onModel={setChatModel}
-                onStop={() => chats.stop(chatKey)}
-                onNewSession={() => {
-                  if (chatKey === NEW_TASK) newTaskKnown.current = null;
-                  chats.reset(chatKey);
-                }}
-              />
-            </div>
-          </aside>
+    <div className="flex h-full flex-col">
+      {/* The toolbar spans the full width, above both sidebars. */}
+      <Toolbar
+        title={title}
+        references={references}
+        diffOn={diffOn}
+        onDiffOn={setDiffOn}
+        reference={reference}
+        onReference={setReference}
+        sideBySide={content?.pdf && compare ? { on: sideBySide, onChange: setSideBySide } : null}
+        canCopyPrompt={annotations.length > 0}
+        copied={copied}
+        onCopyPrompt={copyPrompt}
+        sendPrompt={
+          chats.available
+            ? { enabled: annotations.length > 0 && !(doc && chats.chats[doc.name]?.busy), run: sendPrompt }
+            : null
+        }
+        chatOpen={chatOpen && sidebars.right}
+        onChatOpen={toggleChat}
+        onFind={() => setSearchOpen(true)}
+        onReload={snapshot ? reload : null}
+        onExportPdf={exportPdf}
+        sidebars={sidebars}
+        onSidebars={setSidebars}
+      />
+      {error && (
+        <div className="flex items-center justify-between border-b bg-destructive/10 px-3 py-1 text-xs text-destructive">
+          <span className="truncate">{error}</span>
+          <button className="ml-2 underline" onClick={() => setError(null)}>
+            Dismiss
+          </button>
         </div>
+      )}
+      {notice && (
+        <div className="flex items-center justify-between border-b bg-muted/50 px-3 py-1 text-xs">
+          <span className="truncate">{notice}</span>
+          <button className="ml-2 underline" onClick={() => setNotice(null)}>
+            Dismiss
+          </button>
+        </div>
+      )}
+      <div className="flex min-h-0 flex-1">
+        {/* A hidden sidebar stays mounted and keeps its state. */}
+        <div
+          className={cn("flex h-full min-h-0 shrink-0", !sidebars.left && "hidden")}
+          style={{ width: sidebarLeftWidth }}
+        >
+          <DocumentTree
+            galley={galley}
+            name={name}
+            selection={selection}
+            onSelect={(s) => {
+              setSelection(s);
+              setChatTarget("doc");
+            }}
+            busy={busyDocs}
+            onNewDocument={chats.available ? () => setNewDocOpen(true) : null}
+            newDocument={
+              chats.chats[NEW_TASK]
+                ? {
+                    busy: chats.chats[NEW_TASK].busy,
+                    selected: chatKey === NEW_TASK,
+                    onSelect: () => {
+                      setChatTarget("new");
+                      setChatOpen(true);
+                    },
+                  }
+                : null
+            }
+            onOpenDir={onOpenDir}
+            onInitRules={onInitRules}
+            onEditRules={() => setRulesOpen(true)}
+            onDeleteDocument={onDeleteDocument}
+            onDeleteSnapshots={onDeleteSnapshots}
+            search={<SearchBox query={allQuery} onQueryChange={setAllQuery} inputRef={allInputRef} />}
+            results={
+              allQuery.trim() ? <SearchResults query={allQuery} galley={galley} onOpenHit={onOpenHit} /> : null
+            }
+            contents={content ? <TableOfContents articleRef={articleRef} contentNonce={contentNonce} /> : null}
+          />
+        </div>
+        {sidebars.left && (
+          <ResizeHandle
+            side="left"
+            onResize={(w) => setSidebarWidth("left", w)}
+            onReset={() => resetSidebarWidth("left")}
+          />
+        )}
+        <main className="relative flex min-w-0 flex-1">
+          {content?.pdf ? (
+            <PdfViewer
+              content={content}
+              compare={compare}
+              sideBySide={sideBySide && compare != null}
+              annotations={annotations}
+              activeAnnotation={active}
+              onSelection={onTextSelection}
+              onAnnotationClick={activate}
+              onRegion={onRegion}
+              keyNavigation={shown && !gallery && !rulesOpen}
+              articleRef={articleRef}
+              onRendered={() => setContentNonce((n) => n + 1)}
+              onError={setError}
+            />
+          ) : content ? (
+            <Viewer
+              content={content}
+              compare={compare}
+              imageHashes={imageHashes}
+              annotations={annotations}
+              activeAnnotation={active}
+              onSelection={onTextSelection}
+              onAnnotationClick={activate}
+              onImageClick={(images, index) => setGallery({ images, index })}
+              onCheck={onCheck}
+              onAnswer={onAnswer}
+              onRegion={onRegion}
+              keyNavigation={shown && !gallery && !rulesOpen}
+              articleRef={articleRef}
+              handleRef={viewerRef}
+              onRendered={() => setContentNonce((n) => n + 1)}
+            />
+          ) : (
+            <div className="flex flex-1 items-center justify-center text-sm text-muted-foreground">
+              No document selected.
+            </div>
+          )}
+          <DocSearch
+            open={searchOpen}
+            onClose={() => setSearchOpen(false)}
+            query={findQuery}
+            onQueryChange={(q) => {
+              setFindQuery(q);
+              setFindLine(null);
+            }}
+            targetLine={findLine}
+            containerRef={articleRef}
+            contentNonce={contentNonce}
+            skip={content?.pdf ? ".pdf-old-page" : ".katex-tex"}
+          />
+        </main>
+        {sidebars.right && (
+          <ResizeHandle
+            side="right"
+            onResize={(w) => setSidebarWidth("right", w)}
+            onReset={() => resetSidebarWidth("right")}
+          />
+        )}
+        {/* The right sidebar: the annotations, and below them the output of
+            the agent when it is on. */}
+        <aside
+          className={cn("flex min-h-0 shrink-0 flex-col border-l bg-card/30", !sidebars.right && "hidden")}
+          style={{ width: sidebarRightWidth }}
+        >
+          <div className="min-h-0 flex-1">
+            <AnnotationsPanel
+              enabled={snapshot != null}
+              annotations={annotations}
+              active={active}
+              onActivate={activate}
+              draft={draft}
+              onDraft={setDraft}
+              onSave={onSaveDraft}
+              onDelete={onDelete}
+              imageUrl={imageUrl}
+            />
+          </div>
+          {chatOpen && <ResizeHandle side="top" onResize={setChatHeight} onReset={resetChatHeight} />}
+          {/* The annotations keep at least 6rem of the height. */}
+          <div
+            className={cn("flex min-h-0 shrink-0 flex-col border-t", !chatOpen && "hidden")}
+            style={{ height: chatHeight, maxHeight: "calc(100% - 6rem)" }}
+          >
+            <ChatPanel
+              title={chatKey === NEW_TASK ? "New document" : documentLabel(chatKey).title}
+              newTask={chatKey === NEW_TASK}
+              chat={chats.chats[chatKey]}
+              available={chats.available}
+              model={chatModel}
+              onModel={setChatModel}
+              onStop={() => chats.stop(chatKey)}
+              onNewSession={() => {
+                if (chatKey === NEW_TASK) newTaskKnown.current = null;
+                chats.reset(chatKey);
+              }}
+            />
+          </div>
+        </aside>
       </div>
       {textSel?.removed && (
         <div
