@@ -110,6 +110,7 @@ function GalleyView({ initial, name, shown, onOpenDir, onBusy }: GalleyViewProps
   const addGeneralRef = useRef<(() => void) | null>(null);
   const sendPromptRef = useRef<(() => void) | null>(null);
   const toggleChatRef = useRef<(() => void) | null>(null);
+  const toggleDiffRef = useRef<(() => void) | null>(null);
   const galleyJson = useRef(JSON.stringify(initial));
   const {
     sidebarLeftWidth,
@@ -547,6 +548,9 @@ function GalleyView({ initial, name, shown, onOpenDir, onBusy }: GalleyViewProps
       } else if (meta && e.code === "Digit2") {
         e.preventDefault();
         setSidebars((s) => ({ ...s, right: !s.right }));
+      } else if (meta && k === "d") {
+        e.preventDefault();
+        toggleDiffRef.current?.();
       } else if (meta && e.shiftKey && k === "f") {
         e.preventDefault();
         setSidebars((s) => ({ ...s, left: true }));
@@ -624,6 +628,8 @@ function GalleyView({ initial, name, shown, onOpenDir, onBusy }: GalleyViewProps
   // Shows the output of the agent, or hides it if it shows.
   const toggleChat = () => setChatOpen(!(chatOpen && sidebars.right));
   toggleChatRef.current = toggleChat;
+  // The diff needs another snapshot of the document as its reference.
+  toggleDiffRef.current = references.length > 0 ? () => setDiffOn(!diffOn) : null;
 
   useEffect(() => {
     if (!copied) return;

@@ -128,7 +128,7 @@ export function Toolbar({
       <div className="flex shrink-0 items-center gap-1">
         <label
           className={cn("flex items-center gap-2 text-[13px]", noReference && "opacity-50")}
-          title={noReference ? "This document has only one snapshot" : "Show the changes since a reference snapshot"}
+          title={noReference ? "This document has only one snapshot" : "Show the changes since a reference snapshot (Ctrl D)"}
         >
           <input
             type="checkbox"
