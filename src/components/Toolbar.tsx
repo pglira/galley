@@ -121,7 +121,7 @@ export function Toolbar({
               <PanelLeft />
             </Button>
           </TooltipTrigger>
-          <TooltipContent>{sidebars.left ? "Hide" : "Show"} document list (Ctrl B: both sidebars)</TooltipContent>
+          <TooltipContent>{sidebars.left ? "Hide" : "Show"} document list (Ctrl 1)</TooltipContent>
         </Tooltip>
         <div className="truncate text-xs text-muted-foreground">{title}</div>
       </div>
@@ -393,7 +393,7 @@ export function Toolbar({
               <PanelRight />
             </Button>
           </TooltipTrigger>
-          <TooltipContent>{sidebars.right ? "Hide" : "Show"} annotations (Ctrl B: both sidebars)</TooltipContent>
+          <TooltipContent>{sidebars.right ? "Hide" : "Show"} annotations (Ctrl 2)</TooltipContent>
         </Tooltip>
       </div>
     </header>

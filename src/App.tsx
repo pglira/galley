@@ -540,9 +540,13 @@ function GalleyView({ initial, name, shown, onOpenDir, onBusy }: GalleyViewProps
       if (e.key === "F5") {
         e.preventDefault();
         reload();
-      } else if (meta && k === "b") {
+      } else if (meta && e.code === "Digit1") {
+        // The physical key, so that the shortcut works on every keyboard layout.
         e.preventDefault();
-        setSidebars((s) => (s.left || s.right ? { left: false, right: false } : { left: true, right: true }));
+        setSidebars((s) => ({ ...s, left: !s.left }));
+      } else if (meta && e.code === "Digit2") {
+        e.preventDefault();
+        setSidebars((s) => ({ ...s, right: !s.right }));
       } else if (meta && e.shiftKey && k === "f") {
         e.preventDefault();
         setSidebars((s) => ({ ...s, left: true }));

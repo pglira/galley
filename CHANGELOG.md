@@ -42,6 +42,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - `GALLEY.md` tells the agent to write `document.md` last in each snapshot.
 
 ### Changed
+- `Ctrl 1` hides or shows the document list, `Ctrl 2` the annotations panel. No shortcut hides both sidebars.
 - The toolbar spans the full width of the window, above the document list and the annotations panel.
 - The agent writes `document.md` instead of `report.md`. The app calls the reports "documents".
 
