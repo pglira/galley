@@ -1,3 +1,4 @@
+import { Fragment } from "react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
@@ -27,7 +28,7 @@ import {
   Send,
 } from "lucide-react";
 import { useTheme, PAPER_PRESETS } from "@/lib/theme";
-import { DOC_FONTS } from "@/lib/fonts";
+import { DOC_FONTS, DOC_FONT_KINDS } from "@/lib/fonts";
 import {
   usePreferences,
   ZOOM_MIN,
@@ -351,15 +352,22 @@ export function Toolbar({
               <DropdownMenuSeparator className="mx-0" />
               <DropdownMenuLabel className="text-xs font-normal text-muted-foreground">Document font</DropdownMenuLabel>
               <DropdownMenuRadioGroup value={docFont} onValueChange={setDocFont}>
-                {DOC_FONTS.map((f) => (
-                  <DropdownMenuRadioItem
-                    key={f.id}
-                    value={f.id}
-                    style={{ fontFamily: f.family }}
-                    onSelect={(e) => e.preventDefault()}
-                  >
-                    {f.name}
-                  </DropdownMenuRadioItem>
+                {DOC_FONT_KINDS.map(({ kind, label }) => (
+                  <Fragment key={kind}>
+                    <DropdownMenuLabel className="pt-1 pb-0.5 pl-2 text-[0.65rem] font-normal uppercase tracking-wide text-muted-foreground/70">
+                      {label}
+                    </DropdownMenuLabel>
+                    {DOC_FONTS.filter((f) => f.kind === kind).map((f) => (
+                      <DropdownMenuRadioItem
+                        key={f.id}
+                        value={f.id}
+                        style={{ fontFamily: f.family }}
+                        onSelect={(e) => e.preventDefault()}
+                      >
+                        {f.name}
+                      </DropdownMenuRadioItem>
+                    ))}
+                  </Fragment>
                 ))}
               </DropdownMenuRadioGroup>
             </div>
