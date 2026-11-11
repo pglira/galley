@@ -103,7 +103,23 @@ function Editor({
   imageUrl,
 }: Pick<Props, "onDraft" | "onSave" | "imageUrl"> & { draft: Draft }) {
   const ref = useRef<HTMLTextAreaElement>(null);
-  useEffect(() => ref.current?.focus(), []);
+  // Focus the comment as soon as it is visible. A hidden sidebar shows only
+  // after the editor mounts, and a hidden element cannot take the focus.
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    if (el.offsetParent !== null) {
+      el.focus();
+      return;
+    }
+    const observer = new ResizeObserver(() => {
+      if (el.offsetParent === null) return;
+      el.focus();
+      observer.disconnect();
+    });
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, []);
   const regionUrl = useRegionUrl(draft, imageUrl);
   // A checkbox annotation can have no comment.
   const canSave = draft.checked !== undefined || !!draft.comment.trim();

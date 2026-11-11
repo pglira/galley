@@ -28,6 +28,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - Text size applies to the document only, with browser shortcuts: `Ctrl +`, `Ctrl -`, `Ctrl 0`, `Ctrl` + mouse wheel, and the numpad keys.
 
 ### Fixed
+- The comment field takes the focus when `Ctrl M` or `Ctrl Shift M` shows the hidden annotations panel.
 - The release build contains the Geist font.
 - Dropdown menus are opaque.
 - A deletion of snapshots deletes only the snapshots that the dialog names, also when the agent writes a new snapshot at that time.
