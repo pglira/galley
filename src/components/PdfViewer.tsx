@@ -71,6 +71,33 @@ function pageAt(root: HTMLElement, rect: DOMRect): number | undefined {
 // Shows the pages of a PDF document. Each page has a canvas with the image
 // of the page and a transparent text layer on top, so that text can be
 // selected and annotated. Only the pages near the view keep a canvas.
+// A page at the top of the scroller and the part of its height above the top.
+interface PageAnchor {
+  page: number;
+  fraction: number;
+}
+
+// Returns the first page whose bottom is below the top of the scroller, or
+// null if the scroller is at the top or shows no pages.
+function pageAnchor(root: HTMLElement, scroller: HTMLElement): PageAnchor | null {
+  if (scroller.scrollTop === 0) return null;
+  const top = scroller.getBoundingClientRect().top;
+  const pages = root.querySelectorAll<HTMLElement>(".pdf-page");
+  for (const [i, el] of pages.entries()) {
+    const rect = el.getBoundingClientRect();
+    if (rect.bottom > top) return { page: i, fraction: rect.height > 0 ? (top - rect.top) / rect.height : 0 };
+  }
+  return null;
+}
+
+// Scrolls so that the point of the page of `anchor` is at the top of the scroller.
+function restorePageAnchor(root: HTMLElement, scroller: HTMLElement, anchor: PageAnchor) {
+  const el = root.querySelectorAll<HTMLElement>(".pdf-page")[anchor.page];
+  if (!el) return;
+  const rect = el.getBoundingClientRect();
+  scroller.scrollTop += rect.top + anchor.fraction * rect.height - scroller.getBoundingClientRect().top;
+}
+
 export function PdfViewer({
   content,
   compare,
@@ -174,7 +201,8 @@ export function PdfViewer({
   const leftPdf = sideBySide ? oldPdf : null;
 
   // Lay out all pages with their text layers. The canvases render when a
-  // page comes near the view. A new scale keeps the relative scroll position.
+  // page comes near the view. A new scale keeps the point of the page at the
+  // top of the view in its place.
   React.useEffect(() => {
     const root = ref.current;
     const scroller = scrollerRef.current;
@@ -190,7 +218,7 @@ export function PdfViewer({
     // Markdown document, or as the view if the view is narrower, times the
     // zoom. All pages use the same scale.
     let scale = 1;
-    const fraction = scroller.scrollHeight > 0 ? scroller.scrollTop / scroller.scrollHeight : 0;
+    const anchor = pageAnchor(root, scroller);
     root.replaceChildren();
     root.classList.toggle("side-by-side", leftPdf != null);
     const rendering = new Set<HTMLElement>();
@@ -261,7 +289,8 @@ export function PdfViewer({
         if (all[i]) pages.push(el);
         root.append(el);
       }
-      scroller.scrollTop = restoreTop.current ?? fraction * scroller.scrollHeight;
+      if (restoreTop.current != null) scroller.scrollTop = restoreTop.current;
+      else if (anchor) restorePageAnchor(root, scroller, anchor);
       restoreTop.current = null;
       const elements = [...pages, ...oldPages];
       const sources = [...all, ...left];

@@ -268,20 +268,30 @@ export function Viewer({
   // at the top of the scroller in its place. The anchor is read from the DOM
   // before React replaces the HTML, and applied after the new HTML and again
   // after `enhance`, which changes the height of code blocks and diagrams.
-  const shown = React.useRef({ html, filePath: content.filePath });
+  // A new zoom or paper width keeps the text at the top in its place too; it
+  // changes only the layout, so the anchor applies once after the new layout.
+  const layout = `${zoom} ${paperWidth}`;
+  const shown = React.useRef({ html, filePath: content.filePath, layout });
   const anchor = React.useRef<ScrollAnchor | null>(null);
-  if (html !== shown.current.html && content.filePath === shown.current.filePath) {
-    if (scrollerRef.current && ref.current) anchor.current = captureAnchor(scrollerRef.current, ref.current);
+  // True while `enhance` runs on the shown HTML.
+  const enhancing = React.useRef(false);
+  if (content.filePath === shown.current.filePath && (html !== shown.current.html || layout !== shown.current.layout)) {
+    // An anchor that waits for `enhance` already holds the right position.
+    if (scrollerRef.current && ref.current && !(enhancing.current && anchor.current)) {
+      anchor.current = captureAnchor(scrollerRef.current, ref.current);
+    }
   }
   React.useLayoutEffect(() => {
     if (content.filePath !== shown.current.filePath) anchor.current = null;
-    shown.current = { html, filePath: content.filePath };
+    const layoutOnly = html === shown.current.html;
+    shown.current = { html, filePath: content.filePath, layout };
     if (anchor.current && scrollerRef.current && ref.current) {
       restoreAnchor(scrollerRef.current, ref.current, anchor.current);
     }
+    if (layoutOnly && !enhancing.current) anchor.current = null;
     // `ref` is stable.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [html]);
+  }, [html, layout]);
 
   // Highlight code and render diagrams after each new HTML. A new paper tone
   // or document font restores the plain HTML first, so that code and
@@ -295,8 +305,10 @@ export function Viewer({
       root.innerHTML = html;
     }
     let cancelled = false;
+    enhancing.current = true;
     enhance(root, resolved, () => cancelled).then((done) => {
       if (!done) return;
+      enhancing.current = false;
       if (anchor.current && scrollerRef.current) {
         restoreAnchor(scrollerRef.current, root, anchor.current);
         anchor.current = null;
@@ -306,6 +318,7 @@ export function Viewer({
     });
     return () => {
       cancelled = true;
+      enhancing.current = false;
     };
     // `ref` is stable.
     // eslint-disable-next-line react-hooks/exhaustive-deps
