@@ -208,6 +208,7 @@ function GalleyView({ initial, name, shown, onOpenDir, onBusy }: GalleyViewProps
     chats.reset(NEW_TASK);
     newTaskKnown.current = null;
     sendChat(NEW_TASK, prompt);
+    setSelection(null);
     setChatTarget("new");
     setChatOpen(true);
   };
@@ -228,8 +229,10 @@ function GalleyView({ initial, name, shown, onOpenDir, onBusy }: GalleyViewProps
     return () => clearInterval(id);
   }, [shown, root, applyGalley]);
 
-  // Keep the selection valid: default to the last snapshot of the newest document.
+  // Keep the selection valid: default to the last snapshot of the newest
+  // document. The new task has no selection: its document has no snapshot yet.
   useEffect(() => {
+    if (chatTarget === "new") return;
     const r = galley.documents.find((x) => x.name === selection?.document) ?? galley.documents[0];
     if (!r) {
       if (selection) setSelection(null);
@@ -239,7 +242,7 @@ function GalleyView({ initial, name, shown, onOpenDir, onBusy }: GalleyViewProps
     if (r.name !== selection?.document || s.name !== selection?.snapshot) {
       setSelection({ document: r.name, snapshot: s.name });
     }
-  }, [galley, selection]);
+  }, [galley, selection, chatTarget]);
 
   // Load the content of the selected snapshot, and reload it when it changes.
   useEffect(() => {
@@ -495,6 +498,7 @@ function GalleyView({ initial, name, shown, onOpenDir, onBusy }: GalleyViewProps
   // finds the query in the document.
   const onOpenHit = (hit: SearchHit) => {
     setSelection({ document: hit.document, snapshot: hit.snapshot });
+    setChatTarget("doc");
     if (hit.file === "document.md") {
       setFindQuery(allQuery.trim());
       setFindLine(hit.line - 1);
@@ -729,6 +733,7 @@ function GalleyView({ initial, name, shown, onOpenDir, onBusy }: GalleyViewProps
                     busy: chats.chats[NEW_TASK].busy,
                     selected: chatKey === NEW_TASK,
                     onSelect: () => {
+                      setSelection(null);
                       setChatTarget("new");
                       setChatOpen(true);
                     },
@@ -790,7 +795,7 @@ function GalleyView({ initial, name, shown, onOpenDir, onBusy }: GalleyViewProps
             />
           ) : (
             <div className="flex flex-1 items-center justify-center text-sm text-muted-foreground">
-              No document selected.
+              {chatTarget === "new" ? "The new document has no snapshot yet." : "No document selected."}
             </div>
           )}
           <DocSearch
