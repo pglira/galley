@@ -2,6 +2,8 @@
 
 Galley is a desktop app to review Markdown and PDF documents from AI agents. You read a document, annotate it, and give the annotations back to the agent. The agent writes a new snapshot of the document, and Galley shows you what changed.
 
+Website: <https://pglira.github.io/galley/>
+
 Galley is a fork of [Marky](https://github.com/GRVYDEV/marky) (Tauri v2, Rust, React).
 
 ## Workflow
@@ -76,7 +78,7 @@ pnpm tauri dev
 
 ## Website
 
-The website is in `docs/` (static HTML and CSS, for GitHub Pages). `scripts/screenshots/capture.sh` takes its screenshots from the installed Galley in a virtual X display and writes them to `docs/images/`.
+The website <https://pglira.github.io/galley/> is in `docs/` (static HTML and CSS). GitHub Pages publishes it from `main`. `scripts/screenshots/capture.sh` takes its screenshots from the installed Galley in a virtual X display and writes them to `docs/images/`.
 
 ## Tests
 
