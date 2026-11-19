@@ -1,0 +1,211 @@
+/* The design language of the Galley app (src/styles/index.css): dark
+   surfaces, square corners, IBM Plex Sans and Mono, a muted steel blue accent. */
+:root {
+  --surface: #141517;
+  --bg: #1b1c1f;
+  --card: #212226;
+  --border: #2e3036;
+  --fg: #e8e8e5;
+  --muted: #a3a6ab;
+  --accent: #6998cd;
+  --accent-fg: #0f1823;
+  --font-sans: "IBM Plex Sans", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, Menlo, Consolas, monospace;
+  --gutter: 16px;
+  color-scheme: dark;
+}
+
+* { box-sizing: border-box; border-radius: 0; }
+
+html { scroll-behavior: smooth; scroll-padding-top: 56px; }
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--fg);
+  font: 16px/1.6 var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+}
+
+a { color: var(--accent); text-decoration: none; }
+a:hover { text-decoration: underline; }
+
+code, pre { font-family: var(--font-mono); }
+code { font-size: 0.88em; color: #cfd6e0; }
+
+h1, h2, h3 { font-weight: 600; letter-spacing: -0.01em; margin: 0; }
+h1 { font-size: clamp(3rem, 8vw, 5rem); line-height: 1; letter-spacing: -0.03em; }
+.subtitle { margin: 16px 0 0; font-size: clamp(1.3rem, 2.6vw, 1.75rem); font-weight: 500; }
+h2 { font-size: clamp(1.5rem, 3vw, 2rem); line-height: 1.2; margin-bottom: 0.6em; }
+h3 { font-size: 1rem; margin-bottom: 0.4em; }
+p { margin: 0 0 1em; }
+
+/* Header and footer */
+.site-header {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  height: 56px;
+  padding: 0 max(var(--gutter), calc((100% - 1148px) / 2));
+  display: flex;
+  align-items: center;
+  gap: 28px;
+  background: color-mix(in srgb, var(--bg) 92%, transparent);
+  backdrop-filter: blur(8px);
+  border-bottom: 1px solid var(--border);
+  font-size: 14px;
+}
+.brand { color: var(--fg); font-weight: 600; font-size: 17px; letter-spacing: 0.01em; }
+.nav-links { display: flex; gap: 22px; margin-right: auto; }
+.nav-links a { color: var(--muted); }
+.nav-links a:hover { color: var(--fg); text-decoration: none; }
+
+.button {
+  display: inline-flex;
+  align-items: center;
+  height: 30px;
+  padding: 0 14px;
+  background: var(--accent);
+  color: var(--accent-fg);
+  font-size: 13px;
+  font-weight: 500;
+  border: 1px solid var(--accent);
+}
+.button:hover { text-decoration: none; filter: brightness(1.1); }
+.button-ghost { background: transparent; color: var(--fg); border-color: var(--border); }
+.button-ghost:hover { border-color: var(--accent); }
+
+.site-footer {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 28px max(var(--gutter), calc((100% - 1148px) / 2));
+  border-top: 1px solid var(--border);
+  color: var(--muted);
+  font-size: 13px;
+}
+
+/* Sections */
+main > section {
+  max-width: 1180px;
+  margin: 0 auto;
+  padding: 88px var(--gutter);
+}
+.label {
+  margin-bottom: 12px;
+  color: var(--accent);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+.lead { font-size: 1.15rem; color: var(--muted); max-width: 38em; margin-top: 10px; }
+
+.hero { padding-top: 72px; }
+.actions { display: flex; gap: 12px; flex-wrap: wrap; margin: 28px 0 48px; }
+
+.shot { margin: 0; }
+.shot img {
+  display: block;
+  width: 100%;
+  height: auto;
+  border: 1px solid var(--border);
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.45);
+}
+
+/* Workflow: numbered steps in a row */
+.steps {
+  counter-reset: step;
+  list-style: none;
+  margin: 28px 0 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  border-top: 2px solid var(--accent);
+}
+.steps li {
+  counter-increment: step;
+  padding: 18px 20px 0 0;
+  font-size: 15px;
+}
+.steps li::before {
+  content: counter(step, decimal-leading-zero);
+  display: block;
+  margin-bottom: 10px;
+  font: 500 13px var(--font-mono);
+  color: var(--accent);
+}
+.steps strong { display: block; margin-bottom: 2px; }
+.steps span { color: var(--muted); }
+
+/* Text beside a screenshot */
+.split {
+  display: grid;
+  grid-template-columns: minmax(0, 5fr) minmax(0, 8fr);
+  gap: 56px;
+  align-items: center;
+}
+.split-reverse { grid-template-columns: minmax(0, 8fr) minmax(0, 5fr); }
+.split-reverse .split-text { order: 2; }
+.split-text p { color: var(--muted); }
+.ticks { list-style: none; margin: 0; padding: 0; }
+.ticks li {
+  position: relative;
+  padding: 6px 0 6px 22px;
+  border-top: 1px solid var(--border);
+  font-size: 15px;
+}
+.ticks li::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 15px;
+  width: 8px;
+  height: 8px;
+  background: var(--accent);
+}
+
+/* Feature cards like the annotation cards of the app */
+.grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+  margin-top: 8px;
+}
+.card {
+  padding: 18px 20px;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-left: 2px solid var(--accent);
+}
+.card p { margin: 0; color: var(--muted); font-size: 15px; }
+
+.terminal {
+  margin-top: 24px;
+  padding: 18px 22px;
+  overflow-x: auto;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-left: 2px solid var(--accent);
+  font: 14px/1.9 var(--font-mono);
+  white-space: nowrap;
+}
+.terminal .prompt { color: var(--accent); margin-right: 12px; user-select: none; }
+
+.install > * { max-width: 860px; }
+.install p { color: var(--muted); }
+
+@media (max-width: 860px) {
+  main > section { padding: 56px var(--gutter); }
+  .split, .split-reverse { grid-template-columns: minmax(0, 1fr); gap: 28px; }
+  .split-reverse .split-text { order: 0; }
+  .grid { grid-template-columns: minmax(0, 1fr); }
+  .steps { grid-template-columns: minmax(0, 1fr); }
+  .steps li { padding-bottom: 8px; }
+}
+
+@media (max-width: 520px) {
+  .nav-links { display: none; }
+  .site-header .brand { margin-right: auto; }
+}

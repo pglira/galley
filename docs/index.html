@@ -1,0 +1,112 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Galley</title>
+<meta name="description" content="Galley: review the documents of your AI agent.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:ital,wght@0,400;0,500;0,600;1,400&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<header class="site-header">
+  <a class="brand" href="#top">Galley</a>
+  <div class="nav-links">
+    <a href="#workflow">Workflow</a>
+    <a href="#features">Features</a>
+    <a href="#install">Install</a>
+  </div>
+  <a class="button" href="https://github.com/pglira/galley">GitHub</a>
+</header>
+
+<main id="top">
+
+  <section class="hero">
+    <h1>Galley</h1>
+    <p class="subtitle">Review the documents of your AI agent.</p>
+    <p class="lead">Read Markdown and PDF documents, annotate them, and see what changed in the next snapshot.</p>
+    <div class="actions">
+      <a class="button" href="#install">Install</a>
+      <a class="button button-ghost" href="https://github.com/pglira/galley">Source code</a>
+    </div>
+    <figure class="shot">
+      <a href="images/main.webp"><img src="images/main.webp" width="1600" height="1000" alt="Galley with a design document: the document list on the left, the document in the middle and the annotations on the right"></a>
+    </figure>
+  </section>
+
+  <section id="workflow" class="workflow">
+    <p class="label">Workflow</p>
+    <h2>One directory, many rounds.</h2>
+    <ol class="steps">
+      <li><strong>The agent writes</strong><span>a document into the galley directory.</span></li>
+      <li><strong>You annotate</strong><span>text, figures and regions.</span></li>
+      <li><strong>You send</strong><span>the annotations to the agent with one prompt.</span></li>
+      <li><strong>You compare</strong><span>the next snapshot in the diff.</span></li>
+    </ol>
+  </section>
+
+  <section class="split">
+    <div class="split-text">
+      <p class="label">Annotate</p>
+      <h2>Comments go to the agent as a file.</h2>
+      <ul class="ticks">
+        <li>Comments on text, figures and regions</li>
+        <li>Checkboxes and text fields for questions</li>
+        <li>Saved in <code>annotations.md</code></li>
+      </ul>
+    </div>
+    <figure class="shot">
+      <a href="images/annotate.webp"><img src="images/annotate.webp" width="1600" height="1000" loading="lazy" alt="A selected sentence with an open comment in the annotations panel"></a>
+    </figure>
+  </section>
+
+  <section class="split split-reverse">
+    <div class="split-text">
+      <p class="label">Diff</p>
+      <h2>See only what changed.</h2>
+      <ul class="ticks">
+        <li>Word diff inside paragraphs</li>
+        <li>A gutter shows where the changes are</li>
+        <li>Also for PDF documents</li>
+      </ul>
+    </div>
+    <figure class="shot">
+      <a href="images/diff.webp"><img src="images/diff.webp" width="1600" height="1000" loading="lazy" alt="The diff of two snapshots: removed text in red, inserted text in green, and the gutter of the changes beside the scrollbar"></a>
+    </figure>
+  </section>
+
+  <section id="features" class="features">
+    <p class="label">Features</p>
+    <div class="grid">
+      <div class="card"><h3>Rich Markdown</h3><p>Math, mermaid diagrams, code, tables and alerts.</p></div>
+      <div class="card"><h3>PDF documents</h3><p>Annotate and diff papers from LaTeX or Typst.</p></div>
+      <div class="card"><h3>Any agent</h3><p>Plain files and relative paths: works with containers and remote hosts.</p></div>
+      <div class="card"><h3>Claude Code</h3><p>Send the prompt to a local Claude Code with one click.</p></div>
+      <div class="card"><h3>Search</h3><p>Search all documents and annotations.</p></div>
+      <div class="card"><h3>PDF export</h3><p>Export a document, with the diff if you want.</p></div>
+    </div>
+  </section>
+
+  <section id="install" class="install">
+    <p class="label">Install</p>
+    <h2>Build from source.</h2>
+    <p>Requires Rust, Node.js, pnpm and <code>libwebkit2gtk-4.1-dev</code>. Made for Linux.</p>
+    <div class="terminal">
+      <div><span class="prompt">$</span>git clone https://github.com/pglira/galley.git</div>
+      <div><span class="prompt">$</span>cd galley &amp;&amp; scripts/install.sh</div>
+      <div><span class="prompt">$</span>galley path/to/galley-directory</div>
+    </div>
+  </section>
+
+</main>
+
+<footer class="site-footer">
+  <span>Galley · Apache License 2.0</span>
+  <span>A fork of <a href="https://github.com/GRVYDEV/marky">Marky</a></span>
+</footer>
+
+</body>
+</html>

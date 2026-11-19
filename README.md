@@ -74,6 +74,10 @@ pnpm install
 pnpm tauri dev
 ```
 
+## Website
+
+The website is in `docs/` (static HTML and CSS, for GitHub Pages). `scripts/screenshots/capture.sh` takes its screenshots from the installed Galley in a virtual X display and writes them to `docs/images/`.
+
 ## Tests
 
 ```bash

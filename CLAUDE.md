@@ -56,6 +56,7 @@ Tauri v2 (Rust), `claude-codes` (Claude Code stream-json protocol), Vite + React
 - Markdown styles live in `src/styles/markdown.css`, including the diff and annotation styles.
 - The look is flat and academic: all corners are square (the radius tokens in `src/styles/index.css` are 0; do not add `border-radius` or `rounded-full`), the app font is IBM Plex Sans, the document font is a setting (`src/lib/fonts.ts`, default Inter, CSS variable `--font-doc`), and code uses IBM Plex Mono, and the accent is a muted steel blue.
 - The app chrome is always dark. The document renders on a `.paper` element with a selectable color (`src/lib/theme.tsx`). `.paper-light` and `.paper-dark` set the color variables for content on the paper; Shiki and mermaid use the tone of the paper.
+- The website is in `docs/` (static HTML and CSS). `scripts/screenshots/capture.sh` makes its screenshots in `docs/images/` from the installed Galley in Xvfb.
 - `scripts/install.sh` builds the release and installs the launcher, the desktop entry and the icons below `$PREFIX`.
 
 ## Testing
