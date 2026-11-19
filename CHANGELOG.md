@@ -4,7 +4,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-11-19
+
 ### Added
+- Linux packages: `.deb`, `.rpm` and AppImage. A version tag starts `.github/workflows/release.yml`, which builds them and publishes a GitHub Release. The website links to the newest packages.
 - Website in `docs/` with screenshots of the app, in the design language of the app. `scripts/screenshots/capture.sh` makes the screenshots again.
 - Diff gutter: a strip beside the scrollbar shows where the diff has changes (green for inserted, red for removed text). A click on the strip scrolls there.
 - `Ctrl D` turns the diff on or off.

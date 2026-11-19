@@ -34,6 +34,18 @@ Galley polls the directory every 2 seconds. Thus it also works on network mounts
 
 ## Install
 
+Download a package for x86_64 Linux from the [latest release](https://github.com/pglira/galley/releases/latest):
+
+```bash
+sudo apt install ./galley_amd64.deb                    # Debian, Ubuntu
+sudo dnf install ./galley.x86_64.rpm                   # Fedora, openSUSE (zypper)
+chmod +x Galley_amd64.AppImage && ./Galley_amd64.AppImage  # other distributions
+```
+
+The `.deb` and the `.rpm` install the dependency WebKitGTK 4.1. The AppImage contains it.
+
+### Build from source
+
 Requirements: Rust, Node.js, pnpm, and the [Tauri system dependencies](https://tauri.app/start/prerequisites/) (on Debian/Ubuntu: `libwebkit2gtk-4.1-dev`).
 
 ```bash
@@ -75,6 +87,10 @@ galley path/to/galley-directory
 pnpm install
 pnpm tauri dev
 ```
+
+## Release
+
+A tag `v<version>` that matches the version in `src-tauri/tauri.conf.json` starts `.github/workflows/release.yml`. It builds the `.deb`, the `.rpm` and the AppImage on Ubuntu 22.04 and publishes them as a GitHub Release.
 
 ## Website
 

@@ -1,0 +1,10 @@
+[Desktop Entry]
+Type=Application
+Name={{name}}
+GenericName=Document Reviewer
+Comment={{comment}}
+Exec={{exec}} %f
+Icon={{icon}}
+Terminal=false
+Categories={{categories}}
+StartupWMClass={{exec}}

@@ -58,6 +58,7 @@ Tauri v2 (Rust), `claude-codes` (Claude Code stream-json protocol), Vite + React
 - The app chrome is always dark. The document renders on a `.paper` element with a selectable color (`src/lib/theme.tsx`). `.paper-light` and `.paper-dark` set the color variables for content on the paper; Shiki and mermaid use the tone of the paper.
 - The website is in `docs/` (static HTML and CSS). `scripts/screenshots/capture.sh` makes its screenshots in `docs/images/` from the installed Galley in Xvfb.
 - `scripts/install.sh` builds the release and installs the launcher, the desktop entry and the icons below `$PREFIX`.
+- A tag `v<version>` (equal to the version in `src-tauri/tauri.conf.json`) starts `.github/workflows/release.yml`: it builds the `.deb`, `.rpm` and AppImage (bundle settings in `tauri.conf.json`, desktop entry template `src-tauri/galley.desktop`) and publishes a GitHub Release, with each file also under a fixed name for the download links of the website.
 
 ## Testing
 

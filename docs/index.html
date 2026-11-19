@@ -92,8 +92,23 @@
 
   <section id="install" class="install">
     <p class="label">Install</p>
-    <h2>Build from source.</h2>
-    <p>Requires Rust, Node.js, pnpm and <code>libwebkit2gtk-4.1-dev</code>. Made for Linux.</p>
+    <h2>Download for Linux.</h2>
+    <p>Packages for x86_64. Galley needs WebKitGTK 4.1, which the package manager installs with the <code>.deb</code> and the <code>.rpm</code>.</p>
+    <div class="downloads">
+      <a class="button" href="https://github.com/pglira/galley/releases/latest/download/galley_amd64.deb">.deb · Debian, Ubuntu</a>
+      <a class="button" href="https://github.com/pglira/galley/releases/latest/download/galley.x86_64.rpm">.rpm · Fedora, openSUSE</a>
+      <a class="button button-ghost" href="https://github.com/pglira/galley/releases/latest/download/Galley_amd64.AppImage">AppImage · other</a>
+    </div>
+    <div class="terminal">
+      <div><span class="prompt">$</span>sudo apt install ./galley_amd64.deb</div>
+      <div><span class="prompt">$</span>sudo dnf install ./galley.x86_64.rpm</div>
+      <div><span class="prompt">$</span>chmod +x Galley_amd64.AppImage &amp;&amp; ./Galley_amd64.AppImage</div>
+      <div><span class="prompt">$</span>galley path/to/galley-directory</div>
+    </div>
+    <p class="install-more">All versions are on the <a href="https://github.com/pglira/galley/releases">releases page</a>.</p>
+
+    <h2 class="install-source">Build from source.</h2>
+    <p>Requires Rust, Node.js, pnpm and <code>libwebkit2gtk-4.1-dev</code>.</p>
     <div class="terminal">
       <div><span class="prompt">$</span>git clone https://github.com/pglira/galley.git</div>
       <div><span class="prompt">$</span>cd galley &amp;&amp; scripts/install.sh</div>

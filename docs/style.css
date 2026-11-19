@@ -195,6 +195,9 @@ main > section {
 
 .install > * { max-width: 860px; }
 .install p { color: var(--muted); }
+.downloads { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 24px; }
+.install-more { margin-top: 16px; }
+.install-source { margin-top: 56px; }
 
 @media (max-width: 860px) {
   main > section { padding: 56px var(--gutter); }
