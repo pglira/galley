@@ -4,6 +4,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Fixed
+- Linux: Galley sets `WEBKIT_DISABLE_DMABUF_RENDERER=1`, unless the environment sets it. The DMA-BUF renderer of WebKitGTK can freeze the window with the NVIDIA driver.
+
 ## [0.2.0] - 2026-11-19
 
 ### Added
