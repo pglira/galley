@@ -30,6 +30,7 @@ Tauri v2 (Rust), `claude-codes` (Claude Code stream-json protocol), Vite + React
 - `src-tauri/src/commands.rs` — Tauri commands; the open roots live in `OpenDirs` managed state. Commands on a galley take its root, which must be open.
 - `src-tauri/src/protocol.rs` — the `galley` URI scheme for the images of the open galleys.
 - `src-tauri/src/capture.rs` — screenshots of a rectangle of the webview through WebKitGTK (Linux) for region annotations (`src/lib/region.ts`).
+- `src-tauri/src/copy_image.rs` — **Copy Image** in the context menu of WebKitGTK (Linux): for a `galley` image, it puts the pixels of the image file on the clipboard.
 - `src-tauri/src/chat.rs` — chat with Claude Code: one `claude` process (stream-json, `claude-codes` crate) per chat in the galley root, with `--dangerously-skip-permissions`. The chat id is the session id; `--resume` continues a session after a restart. Events go to the frontend as the `chat` Tauri event. The history comes from the transcript of `claude`. The sessions of the documents are in the settings (`chat_sessions`).
 - `src-tauri/src/pdf.rs` — PDF export through WebKitGTK (Linux); other platforms use the print dialog.
 - `src/App.tsx` — `AppShell` holds the tabs (`src/components/TabBar.tsx`), one per open galley. `GalleyView` holds the state of one galley: selection, diff, annotations. The shown galley polls `scan_dir` every 2 s (works on sshfs and container volumes, where file events do not).

@@ -2,6 +2,7 @@ mod capture;
 mod chat;
 mod cli;
 mod commands;
+mod copy_image;
 mod error;
 mod fs;
 mod galley;
@@ -10,6 +11,7 @@ mod protocol;
 mod settings;
 
 use commands::{InitialDir, OpenDirs};
+use tauri::Manager;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
@@ -23,6 +25,12 @@ pub fn run() {
         .manage(OpenDirs::default())
         .manage(InitialDir(initial))
         .manage(chat::Chats::default())
+        .setup(|app| {
+            if let Some(window) = app.get_webview_window("main") {
+                copy_image::install(&window);
+            }
+            Ok(())
+        })
         .invoke_handler(tauri::generate_handler![
             commands::get_initial_dir,
             commands::get_recent_dirs,
